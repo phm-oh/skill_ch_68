@@ -7,7 +7,7 @@
         <v-select
           v-model="selectedTopicId"
           :items="topics"
-          item-title="topic_name"
+          item-title="title_th"
           item-value="id"
           label="เลือกหัวข้อ"
           variant="outlined"
@@ -27,8 +27,8 @@
           </template>
 
           <base-table :headers="headers" :items="indicators" :loading="loading">
-            <template #item.evaluation_type="{ item }">
-              {{ getTypeName(item.evaluation_type) }}
+            <template #item.type="{ item }">
+              {{ getTypeName(item.type) }}
             </template>
 
             <template #item.actions="{ item }">
@@ -42,10 +42,11 @@
 
     <base-dialog v-model="dialog" title="จัดการตัวชี้วัด" @confirm="saveIndicator" :loading="saving">
       <v-form ref="indicatorForm">
-        <v-text-field v-model="formData.indicator_name" label="ชื่อตัวชี้วัด" :rules="[rules.required]"></v-text-field>
-        <v-text-field v-model.number="formData.weight_score" label="คะแนน" type="number" :rules="[rules.required]"></v-text-field>
-        <v-select v-model="formData.evaluation_type" label="รูปแบบการประเมิน" :items="evaluationTypes" item-title="text" item-value="value" :rules="[rules.required]"></v-select>
-        <v-textarea v-model="formData.description" label="คำอธิบาย" rows="2"></v-textarea>
+        <v-text-field v-model="formData.code" label="รหัสตัวชี้วัด" :rules="[rules.required]"></v-text-field>
+        <v-text-field v-model="formData.name_th" label="ชื่อตัวชี้วัด" :rules="[rules.required]"></v-text-field>
+        <v-text-field v-model.number="formData.weight" label="น้ำหนัก" type="number" :rules="[rules.required]"></v-text-field>
+        <v-select v-model="formData.type" label="รูปแบบการประเมิน" :items="evaluationTypes" item-title="text" item-value="value" :rules="[rules.required]"></v-select>
+        <v-checkbox v-model="formData.active" label="เปิดใช้งาน"></v-checkbox>
       </v-form>
     </base-dialog>
   </v-container>
@@ -73,15 +74,16 @@ const indicatorForm = ref(null);
 const formData = ref({});
 
 const headers = [
-  { title: 'ชื่อตัวชี้วัด', key: 'indicator_name' },
-  { title: 'คะแนน', key: 'weight_score' },
-  { title: 'รูปแบบ', key: 'evaluation_type' },
+  { title: 'รหัส', key: 'code' },
+  { title: 'ชื่อตัวชี้วัด', key: 'name_th' },
+  { title: 'น้ำหนัก', key: 'weight' },
+  { title: 'รูปแบบ', key: 'type' },
   { title: 'จัดการ', key: 'actions', sortable: false }
 ];
 
 const evaluationTypes = [
   { text: 'มี/ไม่มี', value: 'binary' },
-  { text: 'สเกล 1-4', value: 'scale_1_4' },
+  { text: 'สเกล 1-4', value: 'score_1_4' },
   { text: 'กำหนดเอง', value: 'custom_options' }
 ];
 
@@ -95,7 +97,7 @@ const getTypeName = (type) => {
 const loadTopics = async () => {
   try {
     const response = await topicService.getActive();
-    topics.value = response.data.data;
+    topics.value = response.data.items || [];
     if (topics.value.length > 0 && !selectedTopicId.value) {
       selectedTopicId.value = topics.value[0].id;
       loadIndicators();
@@ -110,7 +112,7 @@ const loadIndicators = async () => {
   loading.value = true;
   try {
     const response = await indicatorService.getByTopic(selectedTopicId.value);
-    indicators.value = response.data.data;
+    indicators.value = response.data.items || [];
   } catch (error) {
     notificationStore.error('ไม่สามารถโหลดตัวชี้วัดได้');
   } finally {
@@ -120,7 +122,7 @@ const loadIndicators = async () => {
 
 const openDialog = (indicator = null) => {
   editMode.value = !!indicator;
-  formData.value = indicator ? { ...indicator } : { topic_id: selectedTopicId.value, evaluation_type: 'scale_1_4' };
+  formData.value = indicator ? { ...indicator } : { topic_id: selectedTopicId.value, type: 'score_1_4', active: true, weight: 1 };
   dialog.value = true;
 };
 
@@ -147,7 +149,7 @@ const saveIndicator = async () => {
 };
 
 const confirmDelete = async (indicator) => {
-  if (confirm(`ต้องการลบ "${indicator.indicator_name}" หรือไม่?`)) {
+  if (confirm(`ต้องการลบ "${indicator.name_th}" หรือไม่?`)) {
     try {
       await indicatorService.delete(indicator.id);
       notificationStore.success('ลบตัวชี้วัดสำเร็จ');

@@ -52,16 +52,23 @@
     >
       <v-form ref="periodForm">
         <v-text-field
-          v-model="formData.period_name"
+          v-model="formData.code"
+          label="รหัสรอบ"
+          :rules="[rules.required]"
+        ></v-text-field>
+
+        <v-text-field
+          v-model="formData.name_th"
           label="ชื่อรอบการประเมิน"
           :rules="[rules.required]"
         ></v-text-field>
 
-        <v-textarea
-          v-model="formData.description"
-          label="รายละเอียด"
-          rows="3"
-        ></v-textarea>
+        <v-text-field
+          v-model="formData.buddhist_year"
+          label="ปีพุทธศักราช"
+          type="number"
+          :rules="[rules.required]"
+        ></v-text-field>
 
         <v-text-field
           v-model="formData.start_date"
@@ -108,7 +115,9 @@ const periodForm = ref(null);
 const formData = ref({});
 
 const headers = [
-  { title: 'ชื่อรอบการประเมิน', key: 'period_name' },
+  { title: 'รหัสรอบ', key: 'code' },
+  { title: 'ชื่อรอบการประเมิน', key: 'name_th' },
+  { title: 'ปีพุทธศักราช', key: 'buddhist_year' },
   { title: 'วันเริ่มต้น', key: 'start_date' },
   { title: 'วันสิ้นสุด', key: 'end_date' },
   { title: 'สถานะ', key: 'is_active' },
@@ -121,7 +130,7 @@ const loadPeriods = async () => {
   loading.value = true;
   try {
     const response = await periodService.getAll();
-    periods.value = response.data.data;
+    periods.value = response.data.items || [];
   } catch (error) {
     notificationStore.error('ไม่สามารถโหลดข้อมูลได้');
   } finally {
@@ -164,7 +173,7 @@ const savePeriod = async () => {
 };
 
 const confirmDelete = async (period) => {
-  if (confirm(`ต้องการลบรอบ "${period.period_name}" หรือไม่?`)) {
+  if (confirm(`ต้องการลบรอบ "${period.name_th}" หรือไม่?`)) {
     try {
       await periodService.delete(period.id);
       notificationStore.success('ลบรอบการประเมินสำเร็จ');

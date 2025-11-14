@@ -46,21 +46,7 @@
     >
       <v-form ref="userForm">
         <v-text-field
-          v-model="formData.username"
-          label="ชื่อผู้ใช้"
-          :rules="[rules.required]"
-        ></v-text-field>
-
-        <v-text-field
-          v-if="!editMode"
-          v-model="formData.password"
-          label="รหัสผ่าน"
-          type="password"
-          :rules="[rules.required]"
-        ></v-text-field>
-
-        <v-text-field
-          v-model="formData.full_name"
+          v-model="formData.name_th"
           label="ชื่อ-สกุล"
           :rules="[rules.required]"
         ></v-text-field>
@@ -73,13 +59,11 @@
         ></v-text-field>
 
         <v-text-field
-          v-model="formData.department"
-          label="แผนก"
-        ></v-text-field>
-
-        <v-text-field
-          v-model="formData.position"
-          label="ตำแหน่ง"
+          v-if="!editMode"
+          v-model="formData.password"
+          label="รหัสผ่าน"
+          type="password"
+          :rules="[rules.required]"
         ></v-text-field>
 
         <v-select
@@ -115,10 +99,8 @@ const userForm = ref(null);
 const formData = ref({});
 
 const headers = [
-  { title: 'ชื่อผู้ใช้', key: 'username' },
-  { title: 'ชื่อ-สกุล', key: 'full_name' },
+  { title: 'ชื่อ-สกุล', key: 'name_th' },
   { title: 'อีเมล', key: 'email' },
-  { title: 'แผนก', key: 'department' },
   { title: 'บทบาท', key: 'role' },
   { title: 'จัดการ', key: 'actions', sortable: false }
 ];
@@ -145,7 +127,7 @@ const loadUsers = async () => {
   loading.value = true;
   try {
     const response = await userService.getAll();
-    users.value = response.data.data;
+    users.value = response.data.items || [];
   } catch (error) {
     notificationStore.error('ไม่สามารถโหลดข้อมูลผู้ใช้ได้');
   } finally {
@@ -182,7 +164,7 @@ const saveUser = async () => {
 };
 
 const confirmDelete = async (user) => {
-  if (confirm(`ต้องการลบผู้ใช้ "${user.full_name}" หรือไม่?`)) {
+  if (confirm(`ต้องการลบผู้ใช้ "${user.name_th}" หรือไม่?`)) {
     try {
       await userService.delete(user.id);
       notificationStore.success('ลบผู้ใช้สำเร็จ');

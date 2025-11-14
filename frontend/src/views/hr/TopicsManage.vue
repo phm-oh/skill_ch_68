@@ -3,20 +3,6 @@
     <h1 class="text-h4 mb-4">จัดการหัวข้อการประเมิน</h1>
 
     <v-row>
-      <v-col cols="12" md="3">
-        <v-select
-          v-model="selectedPeriodId"
-          :items="periods"
-          item-title="period_name"
-          item-value="id"
-          label="เลือกรอบการประเมิน"
-          variant="outlined"
-          @update:model-value="loadTopics"
-        ></v-select>
-      </v-col>
-    </v-row>
-
-    <v-row v-if="selectedPeriodId">
       <v-col cols="12">
         <base-card title="รายการหัวข้อ" icon="mdi-format-list-bulleted">
           <template #actions>
@@ -31,8 +17,12 @@
             :items="topics"
             :loading="loading"
           >
-            <template #item.weight_percentage="{ item }">
-              {{ item.weight_percentage }}%
+            <template #item.weight="{ item }">
+              {{ item.weight }}%
+            </template>
+
+            <template #item.active="{ item }">
+              <status-chip :status="item.active ? 'active' : 'inactive'" size="small"></status-chip>
             </template>
 
             <template #item.actions="{ item }">
@@ -59,13 +49,25 @@
     >
       <v-form ref="topicForm">
         <v-text-field
-          v-model="formData.topic_name"
-          label="ชื่อหัวข้อ"
+          v-model="formData.code"
+          label="รหัสหัวข้อ"
           :rules="[rules.required]"
         ></v-text-field>
 
         <v-text-field
-          v-model.number="formData.weight_percentage"
+          v-model="formData.title_th"
+          label="ชื่อหัวข้อ"
+          :rules="[rules.required]"
+        ></v-text-field>
+
+        <v-textarea
+          v-model="formData.description"
+          label="รายละเอียด"
+          rows="3"
+        ></v-textarea>
+
+        <v-text-field
+          v-model.number="formData.weight"
           label="น้ำหนัก (%)"
           type="number"
           min="0"
@@ -73,12 +75,10 @@
           :rules="[rules.required, rules.range(0, 100)]"
         ></v-text-field>
 
-        <v-text-field
-          v-model.number="formData.sort_order"
-          label="ลำดับ"
-          type="number"
-          min="1"
-        ></v-text-field>
+        <v-checkbox
+          v-model="formData.active"
+          label="เปิดใช้งาน"
+        ></v-checkbox>
       </v-form>
     </base-dialog>
   </v-container>
@@ -89,7 +89,7 @@ import { ref, computed, onMounted } from 'vue';
 import BaseCard from '@/components/base/BaseCard.vue';
 import BaseTable from '@/components/base/BaseTable.vue';
 import BaseDialog from '@/components/base/BaseDialog.vue';
-import periodService from '@/services/periodService';
+import StatusChip from '@/components/common/StatusChip.vue';
 import topicService from '@/services/topicService';
 import { useNotificationStore } from '@/stores/notification';
 import { required, range } from '@/utils/validators';
@@ -99,45 +99,29 @@ const loading = ref(false);
 const saving = ref(false);
 const dialog = ref(false);
 const editMode = ref(false);
-const periods = ref([]);
 const topics = ref([]);
-const selectedPeriodId = ref(null);
 const topicForm = ref(null);
 const formData = ref({});
 
 const headers = [
-  { title: 'ชื่อหัวข้อ', key: 'topic_name' },
-  { title: 'น้ำหนัก', key: 'weight_percentage' },
-  { title: 'ลำดับ', key: 'sort_order' },
+  { title: 'รหัส', key: 'code' },
+  { title: 'ชื่อหัวข้อ', key: 'title_th' },
+  { title: 'น้ำหนัก', key: 'weight' },
+  { title: 'สถานะ', key: 'active' },
   { title: 'จัดการ', key: 'actions', sortable: false }
 ];
 
 const rules = { required, range };
 
 const totalWeight = computed(() => {
-  return topics.value.reduce((sum, topic) => sum + (topic.weight_percentage || 0), 0);
+  return topics.value.reduce((sum, topic) => sum + (topic.weight || 0), 0);
 });
 
-const loadPeriods = async () => {
-  try {
-    const response = await periodService.getAll();
-    periods.value = response.data.data;
-    if (periods.value.length > 0 && !selectedPeriodId.value) {
-      selectedPeriodId.value = periods.value[0].id;
-      loadTopics();
-    }
-  } catch (error) {
-    notificationStore.error('ไม่สามารถโหลดรอบการประเมินได้');
-  }
-};
-
 const loadTopics = async () => {
-  if (!selectedPeriodId.value) return;
   loading.value = true;
   try {
     const response = await topicService.getAll();
-    // Filter by period
-    topics.value = response.data.data.filter(t => t.period_id === selectedPeriodId.value);
+    topics.value = response.data.items || [];
   } catch (error) {
     notificationStore.error('ไม่สามารถโหลดหัวข้อได้');
   } finally {
@@ -147,7 +131,7 @@ const loadTopics = async () => {
 
 const openDialog = (topic = null) => {
   editMode.value = !!topic;
-  formData.value = topic ? { ...topic } : { period_id: selectedPeriodId.value, sort_order: topics.value.length + 1 };
+  formData.value = topic ? { ...topic } : { active: true, weight: 0 };
   dialog.value = true;
 };
 
@@ -174,18 +158,18 @@ const saveTopic = async () => {
 };
 
 const confirmDelete = async (topic) => {
-  if (confirm(`ต้องการลบ "${topic.topic_name}" หรือไม่?`)) {
+  if (confirm(`ต้องการลบ "${topic.title_th}" หรือไม่?`)) {
     try {
       await topicService.delete(topic.id);
       notificationStore.success('ลบหัวข้อสำเร็จ');
       loadTopics();
     } catch (error) {
-      notificationStore.error('ไม่สามารถลบได้');
+      notificationStore.error(error.response?.data?.message || 'ไม่สามารถลบได้');
     }
   }
 };
 
 onMounted(() => {
-  loadPeriods();
+  loadTopics();
 });
 </script>
