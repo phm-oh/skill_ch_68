@@ -173,9 +173,18 @@ router.beforeEach(async (to, from, next) => {
         return next('/login');
       }
 
+      console.log('[Router] Role check - User role:', authStore.user.role, 'Required role:', to.meta.role);
+
       if (authStore.user.role !== to.meta.role) {
         const redirectPath = authStore.isAdmin ? '/admin' :
                             authStore.isEvaluator ? '/evaluator' : '/evaluatee';
+
+        // ✅ ป้องกัน redirect loop - ถ้าจะ redirect ไปที่เดียวกัน ให้ผ่าน
+        if (redirectPath === to.path) {
+          console.log('[Router] ⚠️ Would redirect to same path, allowing access instead');
+          return next();
+        }
+
         console.log('[Router] Role mismatch, redirecting to:', redirectPath);
         return next(redirectPath);
       }
