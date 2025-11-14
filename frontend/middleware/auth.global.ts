@@ -2,17 +2,25 @@
 // @ts-ignore
 export default defineNuxtRouteMiddleware((to) => {
   // @ts-ignore
-  const auth = useAuthStore()
-  // @ts-ignore
   if (process.server) return
 
+  // Skip if already on login page
+  if (to.path === '/login') return
+
   // รายการหน้า/พาธที่ต้องล็อกอินก่อนเข้า
-  const protectedRoots = ['/', '/users', '/upload']
+  const protectedRoots = ['/', '/users', '/upload', '/admin', '/evaluator', '/evaluatee', '/me']
   const needAuth = protectedRoots.some(p => to.path === p || to.path.startsWith(p + '/'))
 
-  if (needAuth && !auth.token) {
-    // @ts-ignore
-    return navigateTo('/login')
+  if (needAuth) {
+    // ✅ เช็คจาก localStorage โดยตรง แทนการใช้ store (แก้ race condition)
+    const token = process.client ? localStorage.getItem('auth_token') : null
+
+    if (!token) {
+      console.log('[Auth Middleware] ❌ No token, redirecting to /login')
+      // @ts-ignore
+      return navigateTo('/login')
+    }
+    console.log('[Auth Middleware] ✅ Token found, allowing access to:', to.path)
   }
 })
 

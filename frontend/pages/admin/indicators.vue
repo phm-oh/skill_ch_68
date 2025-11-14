@@ -47,10 +47,7 @@ function isActive(val) {
 }
 
 async function fetchItems() {
-  if (!auth.token) {
-    router.push('/login')
-    return
-  }
+  // ✅ ไม่ต้องเช็ค auth ซ้ำ เพราะ middleware จัดการให้แล้ว
   loading.value = true
   errorMsg.value = ''
   try {

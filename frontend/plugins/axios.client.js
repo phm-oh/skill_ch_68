@@ -32,12 +32,20 @@ export default defineNuxtPlugin((nuxtApp) => {
     return req
   })
 
-  // ✅ เพิ่ม debug ถ้า server บอก Missing token
+  // ✅ เพิ่ม auto-logout เมื่อเจอ 401 (token expired/invalid)
   api.interceptors.response.use(
     (res) => res,
     (err) => {
       if (err?.response?.status === 401) {
-        console.warn('[Axios] 401 Unauthorized:', err?.response?.data)
+        console.warn('[Axios] 401 Unauthorized - Auto logout:', err?.response?.data)
+
+        // ลบ token และ redirect ไป login
+        auth.logout()
+
+        // Redirect to login (ใช้ window.location แทน router เพราะอยู่ใน plugin)
+        if (process.client && window.location.pathname !== '/login') {
+          window.location.href = '/login'
+        }
       }
       return Promise.reject(err)
     }

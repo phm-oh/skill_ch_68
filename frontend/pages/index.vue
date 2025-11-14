@@ -48,10 +48,7 @@ async function load() {
 }
 
 onMounted(() => {
-  if (!auth.isLogged) {
-    router.push('/login')
-    return
-  }
+  // ✅ ไม่ต้องเช็ค auth ซ้ำ เพราะ middleware จัดการให้แล้ว
   load()
 })
 watch(options, load, { deep: true })

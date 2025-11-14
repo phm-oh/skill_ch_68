@@ -50,7 +50,7 @@ const showSnack = ref(false)
 
 /* ---------- load master ---------- */
 async function init() {
-  if (!auth.isLogged) return router.push('/login')
+  // ✅ ไม่ต้องเช็ค auth ซ้ำ เพราะ middleware จัดการให้แล้ว
   loadingInit.value = true
   errorMsg.value = ''
   try {
