@@ -10,14 +10,9 @@ const routes = [
   },
   {
     path: '/',
-    redirect: (to) => {
-      const authStore = useAuthStore();
-      if (!authStore.isAuthenticated) return '/login';
-      if (authStore.isAdmin) return '/admin';
-      if (authStore.isEvaluator) return '/evaluator';
-      if (authStore.isEvaluatee) return '/evaluatee';
-      return '/login';
-    }
+    name: 'Home',
+    redirect: () => '/login', // ✅ ให้ router guard จัดการ redirect ตาม role
+    meta: { requiresAuth: true }
   },
 
   // Admin Routes
@@ -138,8 +133,16 @@ router.beforeEach(async (to, from, next) => {
     return next('/login');
   }
 
+  // ✅ ถ้าเข้า '/' (home) และ authenticated แล้ว ให้ redirect ตาม role
+  if (to.path === '/' && authStore.isAuthenticated && authStore.user) {
+    const redirectPath = authStore.isAdmin ? '/admin' :
+                        authStore.isEvaluator ? '/evaluator' : '/evaluatee';
+    console.log('[Router] Home redirect based on role:', redirectPath);
+    return next(redirectPath);
+  }
+
   // ✅ ถ้าไปหน้า login แต่ authenticated แล้ว ให้ redirect ไปหน้าหลัก
-  if (to.path === '/login' && authStore.isAuthenticated) {
+  if (to.path === '/login' && authStore.isAuthenticated && authStore.user) {
     const redirectPath = authStore.isAdmin ? '/admin' :
                         authStore.isEvaluator ? '/evaluator' : '/evaluatee';
     console.log('[Router] Already authenticated, redirecting to:', redirectPath);
