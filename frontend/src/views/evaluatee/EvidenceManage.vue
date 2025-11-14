@@ -57,7 +57,7 @@ const loadFiles = async () => {
   loading.value = true;
   try {
     const response = await uploadService.getMine();
-    evidenceFiles.value = response.data.data;
+    evidenceFiles.value = response.data.items || [];
   } catch (error) {
     notificationStore.error('ไม่สามารถโหลดไฟล์ได้');
   } finally {

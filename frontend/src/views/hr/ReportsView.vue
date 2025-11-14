@@ -7,7 +7,7 @@
         <v-select
           v-model="selectedPeriodId"
           :items="periods"
-          item-title="period_name"
+          item-title="name_th"
           item-value="id"
           label="เลือกรอบการประเมิน"
           variant="outlined"
@@ -80,8 +80,7 @@ const statistics = ref([
 ]);
 
 const headers = [
-  { title: 'ชื่อ-สกุล', key: 'full_name' },
-  { title: 'แผนก', key: 'department' },
+  { title: 'ชื่อ-สกุล', key: 'evaluatee_name' },
   { title: 'คะแนนรวม', key: 'total_score' },
   { title: 'สถานะ', key: 'status' },
   { title: 'ดูรายละเอียด', key: 'actions', sortable: false }
@@ -90,7 +89,7 @@ const headers = [
 const loadPeriods = async () => {
   try {
     const response = await periodService.getAll();
-    periods.value = response.data.data;
+    periods.value = response.data.items || [];
     if (periods.value.length > 0 && !selectedPeriodId.value) {
       selectedPeriodId.value = periods.value[0].id;
       loadReport();
@@ -126,7 +125,7 @@ const exportReport = () => {
 };
 
 const viewDetails = (item) => {
-  notificationStore.info(`ดูรายละเอียด: ${item.full_name}`);
+  notificationStore.info(`ดูรายละเอียด: ${item.evaluatee_name}`);
 };
 
 onMounted(() => {

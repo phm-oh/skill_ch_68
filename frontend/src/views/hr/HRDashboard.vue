@@ -57,7 +57,7 @@
                   <v-icon icon="mdi-calendar"></v-icon>
                 </v-avatar>
               </template>
-              <v-list-item-title>{{ period.period_name }}</v-list-item-title>
+              <v-list-item-title>{{ period.name_th }}</v-list-item-title>
               <v-list-item-subtitle>
                 {{ formatDate(period.start_date) }} - {{ formatDate(period.end_date) }}
               </v-list-item-subtitle>
@@ -115,10 +115,10 @@ const loadStatistics = async () => {
       userService.getByRole('evaluator')
     ]);
 
-    statistics.value[0].value = usersRes.data.data.length;
-    statistics.value[1].value = periodsRes.data.data.length;
-    statistics.value[2].value = evaluateesRes.data.data.length;
-    statistics.value[3].value = evaluatorsRes.data.data.length;
+    statistics.value[0].value = (usersRes.data.items || []).length;
+    statistics.value[1].value = (periodsRes.data.items || []).length;
+    statistics.value[2].value = (evaluateesRes.data.items || []).length;
+    statistics.value[3].value = (evaluatorsRes.data.items || []).length;
   } catch (error) {
     notificationStore.error('ไม่สามารถโหลดสถิติได้');
   }
@@ -127,7 +127,7 @@ const loadStatistics = async () => {
 const loadActivePeriods = async () => {
   try {
     const response = await periodService.getActive();
-    activePeriods.value = response.data.data;
+    activePeriods.value = response.data.items || [];
   } catch (error) {
     notificationStore.error('ไม่สามารถโหลดรอบการประเมินได้');
   }

@@ -65,8 +65,6 @@ const statusOptions = [
 
 const headers = [
   { title: 'ผู้รับการประเมิน', key: 'evaluatee_name' },
-  { title: 'แผนก', key: 'department' },
-  { title: 'ตำแหน่ง', key: 'position' },
   { title: 'วันที่ส่ง', key: 'submitted_at' },
   { title: 'สถานะ', key: 'status' },
   { title: 'ดำเนินการ', key: 'actions', sortable: false }
@@ -85,7 +83,7 @@ const loadData = async () => {
   loading.value = true;
   try {
     const response = await assignmentService.getMine();
-    assignments.value = response.data.data;
+    assignments.value = response.data.items || [];
   } catch (error) {
     notificationStore.error('ไม่สามารถโหลดข้อมูลได้');
   } finally {

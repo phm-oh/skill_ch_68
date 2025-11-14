@@ -67,7 +67,6 @@ const statistics = ref([
 
 const headers = [
   { title: 'ผู้รับการประเมิน', key: 'evaluatee_name' },
-  { title: 'แผนก', key: 'department' },
   { title: 'สถานะ', key: 'status' },
   { title: 'ดำเนินการ', key: 'actions', sortable: false }
 ];
@@ -76,7 +75,7 @@ const loadData = async () => {
   loading.value = true;
   try {
     const response = await assignmentService.getMine();
-    assignments.value = response.data.data;
+    assignments.value = response.data.items || [];
 
     statistics.value[0].value = assignments.value.filter(a => a.status === 'pending').length;
     statistics.value[1].value = assignments.value.filter(a => a.status === 'evaluated').length;

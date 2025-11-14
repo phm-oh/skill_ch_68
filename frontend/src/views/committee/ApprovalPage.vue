@@ -81,7 +81,7 @@ const loadData = async () => {
   try {
     const response = await resultService.getAll();
     // Filter only evaluated status
-    evaluations.value = response.data.data.filter(e => e.status === 'evaluated');
+    evaluations.value = (response.data.items || []).filter(e => e.status === 'evaluated');
   } catch (error) {
     notificationStore.error('ไม่สามารถโหลดข้อมูลได้');
   } finally {

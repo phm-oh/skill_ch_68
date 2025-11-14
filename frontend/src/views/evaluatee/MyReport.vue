@@ -7,7 +7,7 @@
         <v-select
           v-model="selectedPeriodId"
           :items="periods"
-          item-title="period_name"
+          item-title="name_th"
           item-value="id"
           label="เลือกรอบการประเมิน"
           variant="outlined"
@@ -109,7 +109,7 @@ const reportData = ref(null);
 const loadPeriods = async () => {
   try {
     const response = await periodService.getAll();
-    periods.value = response.data.data;
+    periods.value = response.data.items || [];
     if (periods.value.length > 0 && !selectedPeriodId.value) {
       selectedPeriodId.value = periods.value[0].id;
       loadReport();
