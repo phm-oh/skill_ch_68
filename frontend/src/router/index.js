@@ -119,53 +119,75 @@ const router = createRouter({
 
 // Navigation Guard
 router.beforeEach(async (to, from, next) => {
+  console.log('[Router] Navigating to:', to.path, 'from:', from.path);
+
   const authStore = useAuthStore();
   const requiresAuth = to.meta.requiresAuth !== false;
 
-  // ✅ รอ initialization ให้เสร็จก่อน (fetch user จาก token)
-  if (!authStore.isInitialized) {
-    await authStore.initialize();
-  }
+  try {
+    // ✅ รอ initialization ให้เสร็จก่อน (fetch user จาก token) with timeout
+    if (!authStore.isInitialized) {
+      console.log('[Router] Initializing auth store...');
 
-  // Check authentication
-  if (requiresAuth && !authStore.isAuthenticated) {
-    console.log('[Router] Not authenticated, redirecting to /login');
-    return next('/login');
-  }
+      // Add timeout to prevent hanging
+      const initPromise = authStore.initialize();
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('Init timeout')), 5000)
+      );
 
-  // ✅ ถ้าเข้า '/' (home) และ authenticated แล้ว ให้ redirect ตาม role
-  if (to.path === '/' && authStore.isAuthenticated && authStore.user) {
-    const redirectPath = authStore.isAdmin ? '/admin' :
-                        authStore.isEvaluator ? '/evaluator' : '/evaluatee';
-    console.log('[Router] Home redirect based on role:', redirectPath);
-    return next(redirectPath);
-  }
+      try {
+        await Promise.race([initPromise, timeoutPromise]);
+        console.log('[Router] Auth store initialized');
+      } catch (error) {
+        console.error('[Router] Init error:', error);
+        // Continue anyway, let other checks handle it
+      }
+    }
 
-  // ✅ ถ้าไปหน้า login แต่ authenticated แล้ว ให้ redirect ไปหน้าหลัก
-  if (to.path === '/login' && authStore.isAuthenticated && authStore.user) {
-    const redirectPath = authStore.isAdmin ? '/admin' :
-                        authStore.isEvaluator ? '/evaluator' : '/evaluatee';
-    console.log('[Router] Already authenticated, redirecting to:', redirectPath);
-    return next(redirectPath);
-  }
-
-  // Check role permission
-  if (to.meta.role) {
-    if (!authStore.user) {
-      console.log('[Router] No user data, redirecting to /login');
+    // Check authentication
+    if (requiresAuth && !authStore.isAuthenticated) {
+      console.log('[Router] Not authenticated, redirecting to /login');
       return next('/login');
     }
 
-    if (authStore.user.role !== to.meta.role) {
+    // ✅ ถ้าเข้า '/' (home) และ authenticated แล้ว ให้ redirect ตาม role
+    if (to.path === '/' && authStore.isAuthenticated && authStore.user) {
       const redirectPath = authStore.isAdmin ? '/admin' :
                           authStore.isEvaluator ? '/evaluator' : '/evaluatee';
-      console.log('[Router] Role mismatch, redirecting to:', redirectPath);
+      console.log('[Router] Home redirect based on role:', redirectPath);
       return next(redirectPath);
     }
-  }
 
-  console.log('[Router] ✅ Allowing access to:', to.path);
-  next();
+    // ✅ ถ้าไปหน้า login แต่ authenticated แล้ว ให้ redirect ไปหน้าหลัก
+    if (to.path === '/login' && authStore.isAuthenticated && authStore.user) {
+      const redirectPath = authStore.isAdmin ? '/admin' :
+                          authStore.isEvaluator ? '/evaluator' : '/evaluatee';
+      console.log('[Router] Already authenticated, redirecting to:', redirectPath);
+      return next(redirectPath);
+    }
+
+    // Check role permission
+    if (to.meta.role) {
+      if (!authStore.user) {
+        console.log('[Router] No user data, redirecting to /login');
+        return next('/login');
+      }
+
+      if (authStore.user.role !== to.meta.role) {
+        const redirectPath = authStore.isAdmin ? '/admin' :
+                            authStore.isEvaluator ? '/evaluator' : '/evaluatee';
+        console.log('[Router] Role mismatch, redirecting to:', redirectPath);
+        return next(redirectPath);
+      }
+    }
+
+    console.log('[Router] ✅ Allowing access to:', to.path);
+    next();
+  } catch (error) {
+    console.error('[Router] Navigation error:', error);
+    // On error, redirect to login
+    next('/login');
+  }
 });
 
 export default router;
