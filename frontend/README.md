@@ -45,6 +45,7 @@ frontend/
 
 - Node.js >= 16
 - npm >= 8
+- Backend API running on `http://localhost:7000`
 
 ### ติดตั้ง Dependencies
 
@@ -52,6 +53,16 @@ frontend/
 cd frontend
 npm install
 ```
+
+### Configuration
+
+ไฟล์ `.env` ได้ถูก configured ไว้แล้ว:
+
+```env
+VITE_API_URL=http://localhost:7000/api
+```
+
+หากต้องการแก้ไข URL ของ Backend API ให้แก้ที่ไฟล์ `.env`
 
 ### รัน Development Server
 
@@ -73,19 +84,42 @@ npm run build
 npm run preview
 ```
 
-## 🔑 Configuration
+## 🚀 Quick Start Guide
 
-สร้างไฟล์ `.env` จาก `.env.example`:
-
+### 1. Start Database
 ```bash
-cp .env.example .env
+# ที่ root directory
+docker compose -f docker-compose_mysql.yml up -d
 ```
 
-แก้ไข `.env`:
-
-```env
-VITE_API_URL=http://localhost:7000/api
+### 2. Start Backend
+```bash
+cd backend
+npm install
+npm run dev
 ```
+
+### 3. Start Frontend
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+### 4. Login
+เปิด `http://localhost:5173` และ login ด้วย:
+
+**Admin:**
+- Email: `admin@ccollege.ac.th`
+- Password: `password123`
+
+**Evaluator:**
+- Email: `evaluator1@ccollege.ac.th`
+- Password: `password123`
+
+**Evaluatee:**
+- Email: `evaluatee1@ccollege.ac.th`
+- Password: `password123`
 
 ## 👥 User Roles
 
