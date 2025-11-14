@@ -165,7 +165,10 @@ const getDaysRemaining = (endDate) => {
 
 const formatDate = (date) => new Date(date).toLocaleDateString('th-TH', { year: 'numeric', month: 'long', day: 'numeric' });
 
-const handleLogout = async () => { await authStore.logout(); };
+const handleLogout = async () => {
+  await authStore.logout();
+  router.push('/login');
+};
 
 onMounted(() => { fetchData(); });
 </script>

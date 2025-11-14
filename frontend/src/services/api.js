@@ -25,10 +25,18 @@ api.interceptors.request.use(
 // Response interceptor
 api.interceptors.response.use(
   (response) => response,
-  (error) => {
+  async (error) => {
     if (error.response?.status === 401) {
-      localStorage.removeItem('auth_token');
-      window.location.href = '/login';
+      // Dynamic import เพื่อหลีกเลี่ยง circular dependency
+      const { useAuthStore } = await import('@/stores/auth');
+      const authStore = useAuthStore();
+      authStore.clearAuth();
+
+      // ใช้ router.push แทน window.location.href เพื่อรักษา router state
+      const router = (await import('@/router')).default;
+      if (router.currentRoute.value.path !== '/login') {
+        router.push('/login');
+      }
     }
 
     const message = error.response?.data?.message || 'เกิดข้อผิดพลาด';

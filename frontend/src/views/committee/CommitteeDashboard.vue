@@ -160,7 +160,10 @@ const fetchData = async () => {
 };
 
 const goToEvaluate = (item) => router.push(`/evaluator/evaluate/${item.evaluateeId}/${item.periodId}`);
-const handleLogout = async () => await authStore.logout();
+const handleLogout = async () => {
+  await authStore.logout();
+  router.push('/login');
+};
 
 onMounted(() => fetchData());
 </script>

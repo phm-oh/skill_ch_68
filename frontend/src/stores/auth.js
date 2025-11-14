@@ -5,8 +5,9 @@ import userService from '@/services/userService';
 export const useAuthStore = defineStore('auth', {
   state: () => ({
     user: null,
-    token: localStorage.getItem('auth_token') || null,
-    isAuthenticated: false
+    token: null, // จะโหลดใน init() แทน
+    isAuthenticated: false,
+    _hydrated: false // ป้องกันการ hydrate ซ้ำ
   }),
 
   getters: {
@@ -19,6 +20,25 @@ export const useAuthStore = defineStore('auth', {
   },
 
   actions: {
+    // Initialize auth state จาก localStorage
+    async init() {
+      if (this._hydrated) return;
+
+      const token = localStorage.getItem('auth_token');
+      if (token) {
+        this.token = token;
+        try {
+          await this.fetchCurrentUser();
+          this.isAuthenticated = true;
+        } catch (error) {
+          // Token invalid หรือ expired - ล้าง auth
+          console.warn('Token validation failed:', error);
+          this.clearAuth();
+        }
+      }
+      this._hydrated = true;
+    },
+
     async login(credentials) {
       try {
         const response = await authService.login(credentials);
@@ -42,7 +62,8 @@ export const useAuthStore = defineStore('auth', {
         await authService.logout();
       } finally {
         this.clearAuth();
-        window.location.href = '/login';
+        // ไม่ redirect ที่นี่ - ให้ caller (component) จัดการ redirect
+        // เพื่อห้างการใช้ window.location.href ที่ทำให้สูญเสีย router state
       }
     },
 

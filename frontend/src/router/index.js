@@ -10,14 +10,14 @@ const routes = [
   },
   {
     path: '/',
-    redirect: (to) => {
-      const authStore = useAuthStore();
-      if (!authStore.isAuthenticated) return '/login';
-      if (authStore.isAdmin) return '/admin';
-      if (authStore.isEvaluator) return '/evaluator';
-      if (authStore.isEvaluatee) return '/evaluatee';
+    name: 'Home',
+    redirect: () => {
+      // Redirect จะถูกจัดการใน navigation guard หลัง init
+      // ถ้ายังไม่ได้ login -> guard จะ redirect ไป /login
+      // ถ้า login แล้ว -> guard จะ redirect ตาม role
       return '/login';
-    }
+    },
+    meta: { requiresAuth: true }
   },
 
   // Admin Routes
@@ -125,23 +125,33 @@ const router = createRouter({
 // Navigation Guard
 router.beforeEach(async (to, from, next) => {
   const authStore = useAuthStore();
+
+  // CRITICAL: Initialize auth state จาก localStorage ก่อนทุกอย่าง
+  await authStore.init();
+
   const requiresAuth = to.meta.requiresAuth !== false;
 
-  // Check authentication
+  // ถ้าไปหน้า login แต่ authenticated แล้ว -> redirect ตาม role
+  if (to.path === '/login' && authStore.isAuthenticated) {
+    const redirectPath = authStore.isAdmin ? '/admin' :
+                        authStore.isEvaluator ? '/evaluator' : '/evaluatee';
+    return next(redirectPath);
+  }
+
+  // ถ้าต้อง auth แต่ยังไม่ authenticated -> ไป login
   if (requiresAuth && !authStore.isAuthenticated) {
     return next('/login');
   }
 
-  // Check role permission
-  if (to.meta.role) {
-    if (!authStore.user) {
-      try {
-        await authStore.fetchCurrentUser();
-      } catch (error) {
-        return next('/login');
-      }
-    }
+  // ถ้าไปหน้า root "/" และ authenticated แล้ว -> redirect ตาม role
+  if (to.path === '/' && authStore.isAuthenticated) {
+    const redirectPath = authStore.isAdmin ? '/admin' :
+                        authStore.isEvaluator ? '/evaluator' : '/evaluatee';
+    return next(redirectPath);
+  }
 
+  // ตรวจสอบ role permission
+  if (to.meta.role && authStore.user) {
     if (authStore.user.role !== to.meta.role) {
       const redirectPath = authStore.isAdmin ? '/admin' :
                           authStore.isEvaluator ? '/evaluator' : '/evaluatee';
