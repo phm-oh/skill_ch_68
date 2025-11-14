@@ -1,5 +1,6 @@
 // ~/stores/auth.js
 import { defineStore } from 'pinia'
+
 export const useAuthStore = defineStore('auth', {
   state: () => ({
     token: null,
@@ -7,32 +8,18 @@ export const useAuthStore = defineStore('auth', {
   }),
   getters: {
     isLogged: (s) => !!s.token,
+    userRole: (s) => s.user?.role || 'user'
   },
   actions: {
     setAuth(token, user) {
       this.token = token
-      this.user  = user
-      if (process.client) {
-        localStorage.setItem('auth_token', token)
-        localStorage.setItem('auth_user', JSON.stringify(user || null))
-      }
-    },
-    hydrateFromStorage() {
-      if (!process.client) return
-      const t = localStorage.getItem('auth_token')
-      const u = localStorage.getItem('auth_user')
-      if (t) {
-        this.token = t
-        try { this.user = u ? JSON.parse(u) : null } catch { this.user = null }
-      }
+      this.user = user
+      // ✅ ไม่ต้อง manual save เพราะ piniaPersist จัดการให้แล้ว
     },
     logout() {
       this.token = null
-      this.user  = null
-      if (process.client) {
-        localStorage.removeItem('auth_token')
-        localStorage.removeItem('auth_user')
-      }
+      this.user = null
+      // ✅ ไม่ต้อง manual remove เพราะ piniaPersist จัดการให้แล้ว
     }
   }
 })

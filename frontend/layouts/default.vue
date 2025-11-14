@@ -1,10 +1,21 @@
 <script setup>
 import { ref, computed } from 'vue'
-import { useMenu } from '~/composables/useMenu'  // มีอยู่แล้วในโปรเจกต์ครู
-// TODO: โหลด role จาก store/cookie หลัง login จริง
-const role = ref('user') // 'admin' | 'evaluator' | 'user'
-const { menu } = useMenu(role)                   // จะคืนเมนูตามบทบาทให้อัตโนมัติ :contentReference[oaicite:5]{index=5}
+import { useAuthStore } from '~/stores/auth'
+import { useMenu } from '~/composables/useMenu'
+
+const auth = useAuthStore()
+const router = useRouter()
+
+// ✅ ดึง role จาก auth store จริง
+const role = computed(() => auth.user?.role || 'user')
+const { menu } = useMenu(role)
 const drawer = ref(true)
+
+// ✅ เพิ่ม logout function
+function logout() {
+  auth.logout()
+  router.push('/login')
+}
 </script>
 
 <template>
@@ -13,9 +24,12 @@ const drawer = ref(true)
       <v-app-bar-nav-icon @click="drawer = !drawer" />
       <v-toolbar-title>Personnel evaluation system</v-toolbar-title>
       <v-spacer />
-      <NuxtLink to="/theme" class="mr-4">Theme</NuxtLink>
-      <!-- โปรไฟล์ -->
+      <!-- แสดงชื่อผู้ใช้และบทบาท -->
+      <span class="mr-4 text-caption">
+        {{ auth.user?.name }} ({{ role }})
+      </span>
       <v-btn icon="mdi-account-circle" variant="text" />
+      <v-btn @click="logout" color="error" variant="text">Logout</v-btn>
     </v-app-bar>
 
     <v-navigation-drawer v-model="drawer" width="260">

@@ -6,8 +6,14 @@ export default defineNuxtRouteMiddleware((to) => {
   // @ts-ignore
   if (process.server) return
 
+  // ✅ ถ้า login แล้วพยายามเข้าหน้า login ให้ redirect ไป /
+  if (to.path === '/login' && auth.token) {
+    // @ts-ignore
+    return navigateTo('/')
+  }
+
   // รายการหน้า/พาธที่ต้องล็อกอินก่อนเข้า
-  const protectedRoots = ['/', '/users', '/upload']
+  const protectedRoots = ['/', '/users', '/upload', '/admin', '/evaluator', '/me']
   const needAuth = protectedRoots.some(p => to.path === p || to.path.startsWith(p + '/'))
 
   if (needAuth && !auth.token) {

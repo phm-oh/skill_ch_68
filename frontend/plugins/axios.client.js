@@ -5,6 +5,7 @@ import { useAuthStore } from '~/stores/auth'
 export default defineNuxtPlugin((nuxtApp) => {
   const config = useRuntimeConfig()
   const auth = useAuthStore()
+  const router = useRouter()
 
   const api = axios.create({
     baseURL: config.public.apiBase || 'http://localhost:7000',
@@ -15,11 +16,7 @@ export default defineNuxtPlugin((nuxtApp) => {
 
   // ✅ แนบ token ทุกครั้งที่ request
   api.interceptors.request.use((req) => {
-    // รองรับทั้ง store และ localStorage
-    const token =
-      auth.token ||
-      localStorage.getItem('auth_token') ||
-      localStorage.getItem('accessToken')
+    const token = auth.token
 
     if (token) {
       req.headers = req.headers || {}
@@ -32,12 +29,14 @@ export default defineNuxtPlugin((nuxtApp) => {
     return req
   })
 
-  // ✅ เพิ่ม debug ถ้า server บอก Missing token
+  // ✅ Auto logout เมื่อได้ 401 Unauthorized
   api.interceptors.response.use(
     (res) => res,
     (err) => {
       if (err?.response?.status === 401) {
-        console.warn('[Axios] 401 Unauthorized:', err?.response?.data)
+        console.warn('[Axios] 401 Unauthorized - Auto logout')
+        auth.logout()
+        router.push('/login')
       }
       return Promise.reject(err)
     }
