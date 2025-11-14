@@ -11,9 +11,10 @@
           <v-card-text class="pa-8">
             <v-form @submit.prevent="handleLogin" ref="loginForm">
               <v-text-field
-                v-model="credentials.username"
-                label="ชื่อผู้ใช้"
-                prepend-inner-icon="mdi-account"
+                v-model="credentials.email"
+                label="อีเมล"
+                prepend-inner-icon="mdi-email"
+                type="email"
                 :rules="[rules.required]"
                 variant="outlined"
                 class="mb-2"
@@ -79,7 +80,7 @@ const notificationStore = useNotificationStore();
 
 const loginForm = ref(null);
 const credentials = ref({
-  username: '',
+  email: '',
   password: ''
 });
 const showPassword = ref(false);
@@ -99,7 +100,7 @@ const handleLogin = async () => {
 
   try {
     const user = await authStore.login(credentials.value);
-    notificationStore.success(`ยินดีต้อนรับ ${user.full_name}`);
+    notificationStore.success(`ยินดีต้อนรับ ${user.name}`);
 
     // Redirect based on role
     router.push(`/${user.role}`);

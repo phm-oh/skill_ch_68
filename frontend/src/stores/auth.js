@@ -12,7 +12,7 @@ export const useAuthStore = defineStore('auth', {
     isAdmin: (state) => state.user?.role === 'admin',
     isEvaluator: (state) => state.user?.role === 'evaluator',
     isEvaluatee: (state) => state.user?.role === 'evaluatee',
-    userName: (state) => state.user?.full_name || '',
+    userName: (state) => state.user?.name || '',
     userRole: (state) => state.user?.role || ''
   },
 
@@ -20,13 +20,13 @@ export const useAuthStore = defineStore('auth', {
     async login(credentials) {
       try {
         const response = await authService.login(credentials);
-        const { user, token } = response.data.data;
+        const { user, accessToken } = response.data;
 
         this.user = user;
-        this.token = token;
+        this.token = accessToken;
         this.isAuthenticated = true;
 
-        localStorage.setItem('auth_token', token);
+        localStorage.setItem('auth_token', accessToken);
         return user;
       } catch (error) {
         this.clearAuth();
