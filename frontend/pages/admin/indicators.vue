@@ -218,8 +218,15 @@ onMounted(async () => {
 
 <template>
   <v-container fluid>
-    <h1 class="text-h4 mb-4">Indicators</h1>
-    <p class="text-subtitle-1 mb-6">จัดการตัวชี้วัดการประเมิน</p>
+    <div class="d-flex align-center gap-2 mb-4">
+      <v-btn icon size="small" variant="text" @click="$router.push('/')">
+        <v-icon>mdi-home</v-icon>
+      </v-btn>
+      <div>
+        <h1 class="text-h4">Indicators</h1>
+        <p class="text-subtitle-1 mt-1">จัดการตัวชี้วัดการประเมิน</p>
+      </div>
+    </div>
 
     <v-alert v-if="successMsg" type="success" dismissible class="mb-4" @click:close="successMsg = ''">
       {{ successMsg }}

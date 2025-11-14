@@ -201,7 +201,12 @@ onMounted(() => {
   <div>
     <!-- Header -->
     <div class="d-flex justify-space-between align-center mb-4">
-      <h1 class="text-h5">จัดการรอบการประเมิน</h1>
+      <div class="d-flex align-center gap-2">
+        <v-btn icon size="small" variant="text" @click="$router.push('/')">
+          <v-icon>mdi-home</v-icon>
+        </v-btn>
+        <h1 class="text-h5">จัดการรอบการประเมิน</h1>
+      </div>
       <v-btn color="primary" prepend-icon="mdi-plus" @click="openDialog()">
         เพิ่มรอบการประเมิน
       </v-btn>

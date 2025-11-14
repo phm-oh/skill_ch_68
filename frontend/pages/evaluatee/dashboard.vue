@@ -1,68 +1,72 @@
-<!-- frontend/pages/evaluator/tasks.vue -->
-<!-- 📋 หน้างานที่ได้รับมอบหมาย (Evaluator) -->
+<!-- frontend/pages/evaluatee/dashboard.vue -->
+<!-- 📊 หน้าแดชบอร์ดสำหรับผู้ถูกประเมิน (Evaluatee) -->
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useAuthStore } from '~/stores/auth'
-import { useRouter } from 'vue-router'
 
 definePageMeta({ layout: 'dashboard' })
 
 const auth = useAuthStore()
 const config = useRuntimeConfig()
-const router = useRouter()
 
 // ============= STATE =============
 const periods = ref([])
 const selectedPeriod = ref(null)
-const tasks = ref([])
+const assignments = ref([])
 const loading = ref(false)
 const errorMsg = ref('')
 
 // ============= COMPUTED =============
 const summary = computed(() => {
-  const total = tasks.value.length
-  const completed = tasks.value.filter(t => t.status === 'completed').length
+  const total = assignments.value.length
+  const completed = assignments.value.filter(a => a.status === 'completed').length
   const pending = total - completed
-  
+
   return { total, completed, pending }
 })
 
 // ============= METHODS =============
 async function fetchPeriods() {
   try {
-    const res = await $fetch(`${config.public.apiBase}/api/periods/active`, {
+    console.log('🔍 Fetching periods...')
+    const res = await $fetch(`${config.public.apiBase}/api/periods`, {
       headers: { Authorization: `Bearer ${auth.token}` }
     })
-    periods.value = res || []
+    periods.value = res.items || []
+    console.log('✅ Periods loaded:', periods.value.length)
+
     if (periods.value.length > 0) {
-      selectedPeriod.value = periods.value[0].id
-      fetchTasks()
+      // เลือกรอบที่ active หรือรอบแรก
+      const activePeriod = periods.value.find(p => p.is_active === 1)
+      selectedPeriod.value = activePeriod?.id || periods.value[0].id
+      fetchAssignments()
     }
   } catch (e) {
-    console.error('Load periods failed:', e)
+    console.error('❌ Load periods failed:', e)
+    errorMsg.value = 'โหลดรอบการประเมินไม่สำเร็จ'
   }
 }
 
-async function fetchTasks() {
+async function fetchAssignments() {
   if (!selectedPeriod.value) return
-  
+
   loading.value = true
   errorMsg.value = ''
   try {
+    console.log('🔍 Fetching assignments for period:', selectedPeriod.value)
     const res = await $fetch(`${config.public.apiBase}/api/assignments/mine`, {
       params: { period_id: selectedPeriod.value },
       headers: { Authorization: `Bearer ${auth.token}` }
     })
-    tasks.value = res.items || []
+    console.log('✅ Assignments response:', res)
+    assignments.value = res.items || []
+    console.log('📋 My assignments:', assignments.value.length, 'items')
   } catch (e) {
-    errorMsg.value = e.data?.message || e.message || 'Load failed'
+    console.error('❌ Load assignments failed:', e)
+    errorMsg.value = e.data?.message || e.message || 'โหลดข้อมูลไม่สำเร็จ'
   } finally {
     loading.value = false
   }
-}
-
-function goToEvaluate(task) {
-  router.push(`/evaluator/evaluate/${task.evaluatee_id}?period=${selectedPeriod.value}`)
 }
 
 function getStatusColor(status) {
@@ -85,6 +89,8 @@ function getStatusText(status) {
 
 // ============= LIFECYCLE =============
 onMounted(() => {
+  console.log('🚀 Evaluatee dashboard mounted')
+  console.log('👤 User:', auth.user)
   fetchPeriods()
 })
 </script>
@@ -96,13 +102,13 @@ onMounted(() => {
       <v-btn icon size="small" variant="text" @click="$router.push('/')">
         <v-icon>mdi-home</v-icon>
       </v-btn>
-      <h1 class="text-h5 ml-2">งานที่ได้รับมอบหมาย</h1>
+      <h1 class="text-h5 ml-2">ข้อมูลการประเมินของฉัน</h1>
     </div>
 
     <v-card>
       <v-card-title class="d-flex align-center">
-        <v-icon left color="primary">mdi-briefcase</v-icon>
-        <span class="text-h6 ml-2">รายการงานประเมิน</span>
+        <v-icon left color="primary">mdi-account-check</v-icon>
+        <span class="text-h6 ml-2">รายการกรรมการที่ประเมิน</span>
       </v-card-title>
 
       <v-divider />
@@ -117,7 +123,7 @@ onMounted(() => {
               item-title="name_th"
               item-value="id"
               label="เลือกรอบการประเมิน"
-              @update:model-value="fetchTasks"
+              @update:model-value="fetchAssignments"
             />
           </v-col>
         </v-row>
@@ -128,7 +134,7 @@ onMounted(() => {
             <v-card color="primary" variant="tonal">
               <v-card-text class="text-center">
                 <div class="text-h4">{{ summary.total }}</div>
-                <div class="text-subtitle-1">งานทั้งหมด</div>
+                <div class="text-subtitle-1">กรรมการทั้งหมด</div>
               </v-card-text>
             </v-card>
           </v-col>
@@ -136,7 +142,7 @@ onMounted(() => {
             <v-card color="success" variant="tonal">
               <v-card-text class="text-center">
                 <div class="text-h4">{{ summary.completed }}</div>
-                <div class="text-subtitle-1">เสร็จสิ้น</div>
+                <div class="text-subtitle-1">ประเมินแล้ว</div>
               </v-card-text>
             </v-card>
           </v-col>
@@ -144,7 +150,7 @@ onMounted(() => {
             <v-card color="warning" variant="tonal">
               <v-card-text class="text-center">
                 <div class="text-h4">{{ summary.pending }}</div>
-                <div class="text-subtitle-1">รอดำเนินการ</div>
+                <div class="text-subtitle-1">รอการประเมิน</div>
               </v-card-text>
             </v-card>
           </v-col>
@@ -159,11 +165,11 @@ onMounted(() => {
           <v-progress-circular indeterminate color="primary" />
         </div>
 
-        <!-- Task List -->
-        <v-list v-else-if="tasks.length > 0">
+        <!-- Assignment List -->
+        <v-list v-else-if="assignments.length > 0">
           <v-list-item
-            v-for="task in tasks"
-            :key="task.id"
+            v-for="assignment in assignments"
+            :key="assignment.id"
             class="mb-2"
             border
             rounded
@@ -171,43 +177,37 @@ onMounted(() => {
             <template #prepend>
               <v-avatar color="primary" size="56">
                 <span class="text-h6 text-white">
-                  {{ task.evaluatee_name?.charAt(0) || 'E' }}
+                  {{ assignment.evaluator_name?.charAt(0) || 'E' }}
                 </span>
               </v-avatar>
             </template>
 
             <v-list-item-title class="font-weight-bold">
-              {{ task.evaluatee_name }}
+              {{ assignment.evaluator_name }}
             </v-list-item-title>
             <v-list-item-subtitle>
-              มอบหมายเมื่อ: {{ new Date(task.assigned_at).toLocaleDateString('th-TH') }}
+              ประเมินโดย: {{ assignment.evaluator_name }}
+            </v-list-item-subtitle>
+            <v-list-item-subtitle>
+              รอบ: {{ assignment.period_name }}
             </v-list-item-subtitle>
 
             <template #append>
-              <div class="d-flex flex-column align-end gap-2">
-                <v-chip
-                  :color="getStatusColor(task.status)"
-                  size="small"
-                >
-                  {{ getStatusText(task.status) }}
-                </v-chip>
-                <v-btn
-                  color="primary"
-                  size="small"
-                  @click="goToEvaluate(task)"
-                >
-                  <v-icon left>mdi-clipboard-edit</v-icon>
-                  {{ task.status === 'completed' ? 'ดูรายละเอียด' : 'ให้คะแนน' }}
-                </v-btn>
-              </div>
+              <v-chip
+                :color="getStatusColor(assignment.status)"
+                size="small"
+              >
+                {{ getStatusText(assignment.status) }}
+              </v-chip>
             </template>
           </v-list-item>
         </v-list>
 
         <!-- No Data -->
         <div v-else class="text-center pa-8">
-          <v-icon size="64" color="grey">mdi-briefcase-outline</v-icon>
-          <div class="text-subtitle-1 mt-2">ไม่มีงานที่ได้รับมอบหมาย</div>
+          <v-icon size="64" color="grey">mdi-clipboard-text-outline</v-icon>
+          <div class="text-subtitle-1 mt-2">ยังไม่มีข้อมูลการประเมิน</div>
+          <div class="text-caption text-grey">รอการมอบหมายจากผู้ดูแลระบบ</div>
         </div>
       </v-card-text>
     </v-card>

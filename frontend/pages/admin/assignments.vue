@@ -44,11 +44,15 @@ async function fetchItems() {
   loading.value = true
   errorMsg.value = ''
   try {
+    console.log('🔍 Fetching assignments from:', `${config.public.apiBase}/api/assignments`)
     const res = await $fetch(`${config.public.apiBase}/api/assignments`, {
       headers: { Authorization: `Bearer ${auth.token}` }
     })
+    console.log('✅ API Response:', res)
     items.value = res.items || []
+    console.log('📋 Assignments loaded:', items.value.length, 'items', items.value)
   } catch (e) {
+    console.error('❌ Fetch assignments error:', e)
     errorMsg.value = e.data?.message || e.message || 'Load failed'
   } finally {
     loading.value = false
@@ -57,34 +61,37 @@ async function fetchItems() {
 
 async function fetchPeriods() {
   try {
+    console.log('🔍 Fetching periods...')
     const res = await $fetch(`${config.public.apiBase}/api/periods`, {
       headers: { Authorization: `Bearer ${auth.token}` }
     })
     periods.value = res.items || []
+    console.log('✅ PERIODS loaded:', periods.value.length, 'periods')
   } catch (e) {
-    console.error('Load periods failed:', e)
+    console.error('❌ Load periods failed:', e)
   }
 }
 
 // ✨✨✨ แก้ไข: เปลี่ยนลำดับการเก็บตัวแปร! ✨✨✨
 async function fetchUsers() {
   try {
+    console.log('🔍 Fetching users...')
+
     // ดึงกรรมการ
     const resEvaluators = await $fetch(`${config.public.apiBase}/api/users/role/evaluator`, {
       headers: { Authorization: `Bearer ${auth.token}` }
     })
     evaluators.value = resEvaluators.items || []
+    console.log('✅ EVALUATORS loaded:', evaluators.value.length, 'users', evaluators.value)
 
     // ดึงผู้ถูกประเมิน
     const resEvaluatees = await $fetch(`${config.public.apiBase}/api/users/role/evaluatee`, {
       headers: { Authorization: `Bearer ${auth.token}` }
     })
     evaluatees.value = resEvaluatees.items || []
-    
-    console.log('✅ EVALUATORS:', evaluators.value)
-    console.log('✅ EVALUATEES:', evaluatees.value)
+    console.log('✅ EVALUATEES loaded:', evaluatees.value.length, 'users', evaluatees.value)
   } catch (e) {
-    console.error('Load users failed:', e)
+    console.error('❌ Load users failed:', e)
     errorMsg.value = 'โหลดข้อมูลผู้ใช้ไม่สำเร็จ'
   }
 }
@@ -126,25 +133,28 @@ function closeDelete() {
 async function save() {
   errorMsg.value = ''
   successMsg.value = ''
-  
+
   if (!editedItem.value.period_id || !editedItem.value.evaluator_id || !editedItem.value.evaluatee_id) {
     errorMsg.value = 'กรุณาเลือกข้อมูลให้ครบ'
     return
   }
 
   try {
-    await $fetch(`${config.public.apiBase}/api/assignments`, {
+    console.log('💾 Saving assignment:', editedItem.value)
+    const result = await $fetch(`${config.public.apiBase}/api/assignments`, {
       method: 'POST',
-      headers: { 
+      headers: {
         Authorization: `Bearer ${auth.token}`,
         'Content-Type': 'application/json'
       },
       body: editedItem.value
     })
+    console.log('✅ Assignment saved:', result)
     successMsg.value = 'มอบหมายสำเร็จ'
     await fetchItems()
     close()
   } catch (e) {
+    console.error('❌ Save assignment error:', e)
     errorMsg.value = e.data?.message || e.message || 'Save failed'
   }
 }
@@ -159,9 +169,17 @@ onMounted(() => {
 
 <template>
   <div class="pa-4">
+    <!-- Header with Home Button -->
+    <div class="d-flex align-center mb-4">
+      <v-btn icon size="small" variant="text" @click="$router.push('/')">
+        <v-icon>mdi-home</v-icon>
+      </v-btn>
+      <h1 class="text-h5 ml-2">มอบหมายกรรมการ</h1>
+    </div>
+
     <v-card>
       <v-card-title class="d-flex align-center">
-        <span class="text-h5">มอบหมายกรรมการ</span>
+        <span class="text-h6">รายการมอบหมาย</span>
         <v-spacer />
         <v-btn color="primary" @click="dialog = true">
           <v-icon left>mdi-account-plus</v-icon>

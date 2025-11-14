@@ -108,9 +108,14 @@ onMounted(() => {
   <div class="pa-4">
     <!-- Header -->
     <div class="d-flex justify-space-between align-center mb-6">
-      <div>
-        <h1 class="text-h4 font-weight-bold">Digital Signature</h1>
-        <p class="text-subtitle-1 text-medium-emphasis mt-2">ลงนามอิเล็กทรอนิกส์</p>
+      <div class="d-flex align-center gap-2">
+        <v-btn icon size="small" variant="text" @click="$router.push('/')">
+          <v-icon>mdi-home</v-icon>
+        </v-btn>
+        <div>
+          <h1 class="text-h4 font-weight-bold">Digital Signature</h1>
+          <p class="text-subtitle-1 text-medium-emphasis mt-2">ลงนามอิเล็กทรอนิกส์</p>
+        </div>
       </div>
     </div>
 

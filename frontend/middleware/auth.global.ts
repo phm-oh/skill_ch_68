@@ -2,12 +2,21 @@
 // @ts-ignore
 export default defineNuxtRouteMiddleware((to) => {
   // @ts-ignore
-  const auth = useAuthStore()
-  // @ts-ignore
   if (process.server) return
 
+  // @ts-ignore
+  const auth = useAuthStore()
+
+  // ⭐ FIX: ถ้า store ยังไม่มี token ให้ลอง hydrate จาก localStorage ก่อน
+  if (!auth.token && process.client) {
+    const storedToken = localStorage.getItem('auth_token')
+    if (storedToken) {
+      auth.hydrateFromStorage()
+    }
+  }
+
   // รายการหน้า/พาธที่ต้องล็อกอินก่อนเข้า
-  const protectedRoots = ['/', '/users', '/upload']
+  const protectedRoots = ['/', '/users', '/upload', '/admin', '/evaluatee', '/evaluator']
   const needAuth = protectedRoots.some(p => to.path === p || to.path.startsWith(p + '/'))
 
   if (needAuth && !auth.token) {

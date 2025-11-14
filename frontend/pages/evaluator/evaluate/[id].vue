@@ -187,10 +187,18 @@ onMounted(() => {
 
 <template>
   <div class="pa-4">
+    <!-- Header with Home Button -->
+    <div class="d-flex align-center mb-4">
+      <v-btn icon size="small" variant="text" @click="$router.push('/')">
+        <v-icon>mdi-home</v-icon>
+      </v-btn>
+      <h1 class="text-h5 ml-2">ประเมินผู้ถูกประเมิน</h1>
+    </div>
+
     <v-card>
       <v-card-title class="d-flex align-center">
         <v-icon left color="primary">mdi-account-star</v-icon>
-        <span class="text-h5 ml-2">ประเมินผู้ถูกประเมิน</span>
+        <span class="text-h6 ml-2">แบบฟอร์มประเมิน</span>
       </v-card-title>
 
       <v-divider />

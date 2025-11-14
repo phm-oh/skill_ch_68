@@ -200,9 +200,14 @@ onMounted(() => {
   <div>
     <!-- Header -->
     <div class="d-flex justify-space-between align-center mb-4">
-      <div>
-        <h1 class="text-h5">จัดการหัวข้อการประเมิน</h1>
-        <p class="text-caption text-grey mt-1">กำหนดหัวข้อและน้ำหนักคะแนน</p>
+      <div class="d-flex align-center gap-2">
+        <v-btn icon size="small" variant="text" @click="$router.push('/')">
+          <v-icon>mdi-home</v-icon>
+        </v-btn>
+        <div>
+          <h1 class="text-h5">จัดการหัวข้อการประเมิน</h1>
+          <p class="text-caption text-grey mt-1">กำหนดหัวข้อและน้ำหนักคะแนน</p>
+        </div>
       </div>
       <v-btn color="primary" prepend-icon="mdi-plus" @click="openDialog()">
         เพิ่มหัวข้อ
