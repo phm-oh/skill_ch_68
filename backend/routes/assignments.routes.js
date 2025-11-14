@@ -13,16 +13,20 @@ router.use(auth());
 
 
 // ============================================================
-// ✨ ส่วนเพิ่มเติม: GET /api/assignments/mine
-// ต้องอยู่ก่อน GET /:id เพื่อไม่ให้ "mine" ถูกจับเป็น id
+// ⭐ สำคัญ: ลำดับ routes ต้องเรียงจาก specific -> general
+// 1. /mine (specific)
+// 2. / (general list)
+// 3. /:id (dynamic parameter)
 // ============================================================
+
+// ✨ GET /api/assignments/mine - ดึงงานของตัวเอง
 router.get('/mine', ctrl.getMine);
+
+// ⭐ FIX: GET /api/assignments - ดึงทั้งหมด (ต้องอยู่ก่อน /:id)
+router.get('/', ctrl.list);
 
 // GET /api/assignments/:id - ดึงรายการเดียว
 router.get('/:id', ctrl.get);
-
-// GET /api/assignments - ดึงทั้งหมด (admin only)
-router.get('/', ctrl.list);
 
 // POST /api/assignments/bulk - สร้างหลายรายการ (admin only)
 router.post('/bulk', ctrl.createBulk);

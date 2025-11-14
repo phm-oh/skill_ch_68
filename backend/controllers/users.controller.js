@@ -305,20 +305,25 @@ exports.getMe = async (req, res, next) => {
 exports.getByRole = async (req, res, next) => {
   try {
     const { role } = req.params;
-    
+
+    console.log('[Users API] 🔍 Getting users by role:', role);
+
     // ตรวจสอบ role ที่อนุญาต
     const allowedRoles = ['admin', 'evaluator', 'evaluatee'];
     if (!allowedRoles.includes(role)) {
-      return res.status(400).json({ 
-        success: false, 
-        message: 'Invalid role. Allowed: admin, evaluator, evaluatee' 
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid role. Allowed: admin, evaluator, evaluatee'
       });
     }
 
+    // ⭐ FIX: ไม่ filter ด้วย status เพราะอาจทำให้ดึง users ไม่ได้
     const rows = await db("users")
       .select("id", "name_th", "email", "role", "department_id")
-      .where({ role, status: 'active' })
+      .where({ role })
       .orderBy("name_th", "asc");
+
+    console.log(`[Users API] ✅ Found ${rows.length} users with role: ${role}`);
 
     res.json({
       success: true,
@@ -326,6 +331,7 @@ exports.getByRole = async (req, res, next) => {
       total: rows.length,
     });
   } catch (e) {
+    console.error('[Users API] ❌ Error:', e);
     next(e);
   }
 };
