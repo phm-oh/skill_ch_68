@@ -16,7 +16,21 @@ export default defineNuxtPlugin((nuxtApp) => {
 
   // ✅ แนบ token ทุกครั้งที่ request
   api.interceptors.request.use((req) => {
-    const token = auth.token
+    // ดึง token จาก store ก่อน ถ้าไม่มีให้อ่านจาก localStorage
+    let token = auth.token
+
+    // Fallback: ถ้า store ยังไม่มี token (ยังไม่ hydrate) ให้อ่านจาก localStorage
+    if (!token) {
+      try {
+        const stored = localStorage.getItem('pinia-auth')
+        if (stored) {
+          const parsed = JSON.parse(stored)
+          token = parsed.token
+        }
+      } catch (e) {
+        console.error('[Axios] Error reading token from localStorage:', e)
+      }
+    }
 
     if (token) {
       req.headers = req.headers || {}
