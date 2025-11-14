@@ -3,11 +3,14 @@ import authService from '@/services/authService';
 import userService from '@/services/userService';
 
 export const useAuthStore = defineStore('auth', {
-  state: () => ({
-    user: null,
-    token: localStorage.getItem('auth_token') || null,
-    isAuthenticated: false
-  }),
+  state: () => {
+    const token = localStorage.getItem('auth_token');
+    return {
+      user: null,
+      token: token,
+      isAuthenticated: !!token
+    };
+  },
 
   getters: {
     isAdmin: (state) => state.user?.role === 'admin',

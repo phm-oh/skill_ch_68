@@ -10,14 +10,7 @@ const routes = [
   },
   {
     path: '/',
-    redirect: (to) => {
-      const authStore = useAuthStore();
-      if (!authStore.isAuthenticated) return '/login';
-      if (authStore.isAdmin) return '/admin';
-      if (authStore.isEvaluator) return '/evaluator';
-      if (authStore.isEvaluatee) return '/evaluatee';
-      return '/login';
-    }
+    redirect: '/login'
   },
 
   // Admin Routes
@@ -127,25 +120,41 @@ router.beforeEach(async (to, from, next) => {
   const authStore = useAuthStore();
   const requiresAuth = to.meta.requiresAuth !== false;
 
-  // Check authentication
-  if (requiresAuth && !authStore.isAuthenticated) {
-    return next('/login');
+  // Allow login page without auth
+  if (to.path === '/login') {
+    // If already logged in, redirect to dashboard
+    if (authStore.isAuthenticated && authStore.user) {
+      const redirectPath = authStore.isAdmin ? '/admin' :
+                          authStore.isEvaluator ? '/evaluator' : '/evaluatee';
+      return next(redirectPath);
+    }
+    return next();
   }
 
-  // Check role permission
-  if (to.meta.role) {
+  // Check authentication for protected routes
+  if (requiresAuth) {
+    if (!authStore.token) {
+      return next('/login');
+    }
+
+    // Fetch user data if not available
     if (!authStore.user) {
       try {
         await authStore.fetchCurrentUser();
       } catch (error) {
+        console.error('Failed to fetch user:', error);
+        authStore.clearAuth();
         return next('/login');
       }
     }
 
-    if (authStore.user.role !== to.meta.role) {
-      const redirectPath = authStore.isAdmin ? '/admin' :
-                          authStore.isEvaluator ? '/evaluator' : '/evaluatee';
-      return next(redirectPath);
+    // Check role permission
+    if (to.meta.role && authStore.user) {
+      if (authStore.user.role !== to.meta.role) {
+        const redirectPath = authStore.isAdmin ? '/admin' :
+                            authStore.isEvaluator ? '/evaluator' : '/evaluatee';
+        return next(redirectPath);
+      }
     }
   }
 
