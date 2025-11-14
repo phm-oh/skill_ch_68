@@ -127,28 +127,41 @@ router.beforeEach(async (to, from, next) => {
   const authStore = useAuthStore();
   const requiresAuth = to.meta.requiresAuth !== false;
 
+  // ✅ รอ initialization ให้เสร็จก่อน (fetch user จาก token)
+  if (!authStore.isInitialized) {
+    await authStore.initialize();
+  }
+
   // Check authentication
   if (requiresAuth && !authStore.isAuthenticated) {
+    console.log('[Router] Not authenticated, redirecting to /login');
     return next('/login');
+  }
+
+  // ✅ ถ้าไปหน้า login แต่ authenticated แล้ว ให้ redirect ไปหน้าหลัก
+  if (to.path === '/login' && authStore.isAuthenticated) {
+    const redirectPath = authStore.isAdmin ? '/admin' :
+                        authStore.isEvaluator ? '/evaluator' : '/evaluatee';
+    console.log('[Router] Already authenticated, redirecting to:', redirectPath);
+    return next(redirectPath);
   }
 
   // Check role permission
   if (to.meta.role) {
     if (!authStore.user) {
-      try {
-        await authStore.fetchCurrentUser();
-      } catch (error) {
-        return next('/login');
-      }
+      console.log('[Router] No user data, redirecting to /login');
+      return next('/login');
     }
 
     if (authStore.user.role !== to.meta.role) {
       const redirectPath = authStore.isAdmin ? '/admin' :
                           authStore.isEvaluator ? '/evaluator' : '/evaluatee';
+      console.log('[Router] Role mismatch, redirecting to:', redirectPath);
       return next(redirectPath);
     }
   }
 
+  console.log('[Router] ✅ Allowing access to:', to.path);
   next();
 });
 

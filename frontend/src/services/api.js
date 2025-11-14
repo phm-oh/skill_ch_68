@@ -27,8 +27,14 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
+      console.warn('[API] 401 Unauthorized - Auto logout');
+      // ✅ Clear localStorage and redirect
       localStorage.removeItem('auth_token');
-      window.location.href = '/login';
+
+      // ป้องกัน redirect loop
+      if (window.location.pathname !== '/login') {
+        window.location.href = '/login';
+      }
     }
 
     const message = error.response?.data?.message || 'เกิดข้อผิดพลาด';
