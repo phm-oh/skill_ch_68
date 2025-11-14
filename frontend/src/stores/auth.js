@@ -22,13 +22,14 @@ export const useAuthStore = defineStore('auth', {
     async login(credentials) {
       try {
         const response = await authService.login(credentials);
-        const { user, token } = response.data.data;
+        // Backend ส่ง { success: true, accessToken, user } ไม่ได้ wrap ใน data
+        const { user, accessToken } = response.data;
 
         this.user = user;
-        this.token = token;
+        this.token = accessToken;
         this.isAuthenticated = true;
 
-        localStorage.setItem('auth_token', token);
+        localStorage.setItem('auth_token', accessToken);
         return user;
       } catch (error) {
         this.clearAuth();
@@ -48,7 +49,8 @@ export const useAuthStore = defineStore('auth', {
     async fetchCurrentUser() {
       try {
         const response = await userService.getMe();
-        this.user = response.data.data;
+        // Backend อาจส่ง response.data.data หรือ response.data
+        this.user = response.data.data || response.data;
         this.isAuthenticated = true;
         return this.user;
       } catch (error) {

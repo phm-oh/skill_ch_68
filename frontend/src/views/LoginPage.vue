@@ -13,11 +13,12 @@
           <v-card-text class="pa-6">
             <v-form ref="formRef" @submit.prevent="handleLogin">
               <v-text-field
-                v-model="credentials.username"
-                label="ชื่อผู้ใช้"
-                prepend-inner-icon="mdi-account"
-                :rules="[rules.required]"
-                :error-messages="errors.username"
+                v-model="credentials.email"
+                label="อีเมล"
+                prepend-inner-icon="mdi-email"
+                type="email"
+                :rules="[rules.required, rules.email]"
+                :error-messages="errors.email"
                 variant="outlined"
                 class="mb-2"
               ></v-text-field>
@@ -86,21 +87,25 @@ const showPassword = ref(false);
 const errorMessage = ref('');
 
 const credentials = reactive({
-  username: '',
+  email: '',
   password: ''
 });
 
 const errors = reactive({
-  username: '',
+  email: '',
   password: ''
 });
 
 const rules = {
-  required: (value) => !!value || 'กรุณากรอกข้อมูล'
+  required: (value) => !!value || 'กรุณากรอกข้อมูล',
+  email: (value) => {
+    const pattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return pattern.test(value) || 'รูปแบบอีเมลไม่ถูกต้อง';
+  }
 };
 
 const handleLogin = async () => {
-  errors.username = '';
+  errors.email = '';
   errors.password = '';
   errorMessage.value = '';
 
@@ -111,7 +116,7 @@ const handleLogin = async () => {
 
   try {
     const user = await authStore.login(credentials);
-    notificationStore.success(`ยินดีต้อนรับ ${user.full_name || user.name}`);
+    notificationStore.success(`ยินดีต้อนรับ ${user.name || user.full_name || user.email}`);
 
     // Redirect based on role
     if (user.role === 'admin') {
@@ -125,7 +130,7 @@ const handleLogin = async () => {
     }
   } catch (error) {
     console.error('Login error:', error);
-    errorMessage.value = error.response?.data?.message || 'ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง';
+    errorMessage.value = error.response?.data?.message || 'อีเมลหรือรหัสผ่านไม่ถูกต้อง';
   } finally {
     loading.value = false;
   }
