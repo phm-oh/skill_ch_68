@@ -25,7 +25,7 @@
     <v-row class="mt-4">
       <v-col cols="12">
         <base-card title="งานที่ต้องประเมิน (Top 5)" icon="mdi-clipboard-list">
-          <v-table v-if="topAssignments.length > 0">
+          <v-table v-if="topAssignments && topAssignments.length > 0">
             <thead>
               <tr>
                 <th>ลำดับ</th>

@@ -113,10 +113,10 @@ const fetchStats = async () => {
       assignmentService.getAll()
     ]);
 
-    stats.value.totalUsers = usersRes.data.data.length;
-    stats.value.totalPeriods = periodsRes.data.data.length;
-    stats.value.activePeriods = periodsRes.data.data.filter(p => p.is_active).length;
-    stats.value.totalAssignments = assignmentsRes.data.data.length;
+    stats.value.totalUsers = usersRes.data.data?.length || 0;
+    stats.value.totalPeriods = periodsRes.data.data?.length || 0;
+    stats.value.activePeriods = periodsRes.data.data?.filter(p => p.is_active).length || 0;
+    stats.value.totalAssignments = assignmentsRes.data.data?.length || 0;
   } catch (error) {
     notificationStore.error('ไม่สามารถโหลดข้อมูลได้');
   } finally {

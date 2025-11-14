@@ -11,7 +11,7 @@
       </v-col>
     </v-row>
 
-    <v-row v-if="activePeriods.length > 0">
+    <v-row v-if="activePeriods && activePeriods.length > 0">
       <v-col cols="12" v-for="period in activePeriods" :key="period.id">
         <base-card :title="`รอบการประเมิน: ${period.name}`" icon="mdi-calendar-clock">
           <v-row>
@@ -62,7 +62,7 @@
       </v-col>
     </v-row>
 
-    <v-row v-if="!loading && activePeriods.length === 0">
+    <v-row v-if="!loading && activePeriods && activePeriods.length === 0">
       <v-col cols="12">
         <v-alert type="info" variant="tonal" prominent>
           <v-alert-title>ไม่มีรอบการประเมินที่เปิดอยู่</v-alert-title>
@@ -105,7 +105,7 @@ const fetchData = async () => {
   loading.value = true;
   try {
     const periodsRes = await periodService.getActive();
-    activePeriods.value = periodsRes.data.data;
+    activePeriods.value = periodsRes.data.data || [];
 
     for (const period of activePeriods.value) {
       try {
