@@ -123,7 +123,8 @@ const tableHeaders = [
 const fetchPeriods = async () => {
   try {
     const response = await periodService.getAll();
-    periods.value = response.data.data || [];
+    // Backend ส่ง { success: true, items: [...] }
+    periods.value = response.data.items || response.data.data || [];
   } catch (error) {
     notificationStore.error('ไม่สามารถโหลดรอบการประเมินได้');
   }

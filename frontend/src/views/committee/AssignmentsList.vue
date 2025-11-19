@@ -132,8 +132,9 @@ const fetchData = async () => {
       evaluationService.getAll()
     ]);
 
-    assignments.value = assignmentsRes.data.data || [];
-    evaluations.value = evaluationsRes.data.data || [];
+    // Backend ส่ง { success: true, items: [...] }
+    assignments.value = assignmentsRes.data.items || assignmentsRes.data.data || [];
+    evaluations.value = evaluationsRes.data.items || evaluationsRes.data.data || [];
   } catch (error) {
     notificationStore.error('ไม่สามารถโหลดข้อมูลได้: ' + (error.response?.data?.message || error.message));
   } finally {

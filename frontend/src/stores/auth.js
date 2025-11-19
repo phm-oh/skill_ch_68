@@ -6,7 +6,7 @@ export const useAuthStore = defineStore('auth', {
   state: () => ({
     user: null,
     token: localStorage.getItem('auth_token') || null,
-    isAuthenticated: false
+    isAuthenticated: !!localStorage.getItem('auth_token')
   }),
 
   getters: {
@@ -49,8 +49,12 @@ export const useAuthStore = defineStore('auth', {
     async fetchCurrentUser() {
       try {
         const response = await userService.getMe();
-        // Backend อาจส่ง response.data.data หรือ response.data
-        this.user = response.data.data || response.data;
+        // Backend ส่ง { success: true, items: [user], total: 1 }
+        // หรือ { success: true, data: user }
+        const data = response.data.data ||
+                     (response.data.items && response.data.items[0]) ||
+                     response.data;
+        this.user = data;
         this.isAuthenticated = true;
         return this.user;
       } catch (error) {

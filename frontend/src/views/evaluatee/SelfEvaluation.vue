@@ -6,26 +6,26 @@
     </v-alert>
     <template v-else>
       <v-card class="mb-4">
-        <v-card-title>{{ activePeriod.period_name }}</v-card-title>
+        <v-card-title>{{ activePeriod.name_th }}</v-card-title>
         <v-card-subtitle>{{ formatDate(activePeriod.start_date) }} - {{ formatDate(activePeriod.end_date) }}</v-card-subtitle>
       </v-card>
       <v-row v-if="!loading">
         <v-col cols="12" md="8">
           <v-card v-for="topic in topics" :key="topic.id" class="mb-4">
-            <v-card-title class="bg-primary">{{ topic.topic_name }} ({{ topic.weight_percentage }}%)</v-card-title>
+            <v-card-title class="bg-primary">{{ topic.title_th }} ({{ topic.weight }}%)</v-card-title>
             <v-card-text>
               <div v-for="indicator in topic.indicators" :key="indicator.id" class="mb-4 pa-3 border rounded">
                 <div class="d-flex justify-space-between mb-2">
-                  <strong>{{ indicator.indicator_name }}</strong>
-                  <v-chip size="small" color="primary">{{ indicator.weight_score }}%</v-chip>
+                  <strong>{{ indicator.name_th }}</strong>
+                  <v-chip size="small" color="primary">{{ indicator.weight }}%</v-chip>
                 </div>
-                <div class="text-caption text-grey mb-3">{{ getEvaluationTypeText(indicator.evaluation_type) }}</div>
+                <div class="text-caption text-grey mb-3">{{ getEvaluationTypeText(indicator.type) }}</div>
                 <v-radio-group v-model="indicator.selected_value" :inline="true" density="compact" @update:modelValue="updateScore(indicator)">
-                  <v-radio v-for="option in getOptions(indicator.evaluation_type)" :key="option.value" :label="option.label" :value="option.value"></v-radio>
+                  <v-radio v-for="option in getOptions(indicator.type)" :key="option.value" :label="option.label" :value="option.value"></v-radio>
                 </v-radio-group>
                 <v-textarea v-model="indicator.comment" label="ความเห็น" variant="outlined" density="compact" rows="2" class="mt-2"></v-textarea>
                 <div class="text-end text-primary font-weight-bold">
-                  คะแนน: {{ calculateScore(indicator.selected_value || 0, indicator.weight_score).toFixed(2) }}
+                  คะแนน: {{ calculateScore(indicator.selected_value || 0, indicator.weight).toFixed(2) }}
                 </div>
               </div>
             </v-card-text>
@@ -76,30 +76,31 @@ const saving = ref(false);
 const submitDialog = ref(false);
 
 const evaluationTypes = [
-  { text: 'แบบ 2 ทาง (ได้/ไม่ได้)', value: 'binary' },
-  { text: 'แบบมาตราส่วน 1-4', value: 'scale_1_4' },
-  { text: 'แบบกำหนดเอง', value: 'custom' }
+  { text: 'แบบ ใช่/ไม่ใช่', value: 'yes_no' },
+  { text: 'แบบมาตราส่วน 1-4', value: 'score_1_4' },
+  { text: 'แบบ URL ไฟล์', value: 'file_url' }
 ];
 
 const getEvaluationTypeText = (type) => evaluationTypes.find(t => t.value === type)?.text || type;
 
 const getOptions = (type) => {
-  if (type === 'binary') return [{ label: 'ไม่ได้', value: 0 }, { label: 'ได้', value: 1 }];
-  if (type === 'scale_1_4') return [
+  if (type === 'yes_no') return [{ label: 'ไม่ใช่', value: 0 }, { label: 'ใช่', value: 1 }];
+  if (type === 'score_1_4') return [
     { label: '1', value: 1 }, { label: '2', value: 2 },
     { label: '3', value: 3 }, { label: '4', value: 4 }
   ];
+  if (type === 'file_url') return [{ label: 'ไม่มี', value: 0 }, { label: 'มี', value: 1 }];
   return [{ label: '0', value: 0 }, { label: '1', value: 1 }];
 };
 
 const updateScore = (indicator) => {
-  indicator.calculated_score = calculateScore(indicator.selected_value, indicator.weight_score);
+  indicator.calculated_score = calculateScore(indicator.selected_value, indicator.weight);
 };
 
 const topicScores = computed(() => topics.value.map(topic => ({
-  topic_name: topic.topic_name,
-  weight_percentage: topic.weight_percentage,
-  topic_score: calculateTopicScore(topic.indicators || [], topic.weight_percentage)
+  topic_name: topic.title_th,
+  weight_percentage: topic.weight,
+  topic_score: calculateTopicScore(topic.indicators || [], topic.weight)
 })));
 
 const totalScore = computed(() => calculateTotalScore(topics.value));
@@ -108,13 +109,19 @@ const fetchData = async () => {
   loading.value = true;
   try {
     const periodRes = await periodService.getActive();
-    activePeriod.value = periodRes.data.data;
+    // Backend ส่ง { success: true, items: [period] }
+    const periods = periodRes.data.items || periodRes.data.data || [];
+    activePeriod.value = periods[0] || null;
     if (!activePeriod.value) return;
+
     const topicsRes = await topicService.getAll();
-    const allTopics = topicsRes.data.data.filter(t => t.period_id === activePeriod.value.id);
+    // Backend ส่ง { success: true, items: [...] }
+    const allTopics = topicsRes.data.items || topicsRes.data.data || [];
+
     for (const topic of allTopics) {
       const indicatorsRes = await topicService.getIndicatorsByTopic(topic.id);
-      topic.indicators = indicatorsRes.data.data.map(ind => ({
+      const indicators = indicatorsRes.data.items || indicatorsRes.data.data || [];
+      topic.indicators = indicators.map(ind => ({
         ...ind, selected_value: 0, comment: '', calculated_score: 0
       }));
     }
@@ -165,7 +172,7 @@ const saveResults = async (isSubmit) => {
           indicator_id: indicator.id,
           self_selected_value: indicator.selected_value,
           self_comment: indicator.comment,
-          self_score: calculateScore(indicator.selected_value, indicator.weight_score)
+          self_score: calculateScore(indicator.selected_value, indicator.weight)
         });
       });
     });
