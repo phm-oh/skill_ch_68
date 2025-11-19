@@ -17,30 +17,37 @@
 
     <template v-if="selectedPeriodId && !loading">
       <base-card
-        v-for="topic in topics"
+        v-for="(topic, idx) in topics"
         :key="topic.id"
         :title="topic.topic_name"
         :subtitle="`น้ำหนัก ${topic.weight_percentage}%`"
         icon="mdi-book-open-variant"
         class="mb-4"
+        :color="getTopicColor(idx)"
+        variant="tonal"
       >
-        <div v-for="indicator in topic.indicators" :key="indicator.id" class="mb-6">
-          <v-divider class="mb-4"></v-divider>
-
+        <v-card
+          v-for="indicator in topic.indicators"
+          :key="indicator.id"
+          class="mb-4 pa-4"
+          :color="getIndicatorColor(idx)"
+          variant="outlined"
+          elevation="2"
+        >
           <div class="d-flex align-center mb-3">
-            <v-icon icon="mdi-checkbox-marked-circle-outline" class="mr-2" color="primary"></v-icon>
-            <span class="text-subtitle-1 font-weight-medium">{{ indicator.indicator_name }}</span>
-            <v-chip size="small" color="primary" class="ml-2">{{ indicator.weight_score }}%</v-chip>
+            <v-icon icon="mdi-checkbox-marked-circle-outline" class="mr-2" size="large" :color="getIconColor(idx)"></v-icon>
+            <span class="text-subtitle-1 font-weight-bold flex-grow-1">{{ indicator.indicator_name }}</span>
+            <v-chip :color="getIconColor(idx)" variant="flat">{{ indicator.weight_score }}%</v-chip>
           </div>
 
           <div v-if="getIndicatorFiles(indicator.id).length > 0" class="mb-3">
-            <div class="text-subtitle-2 mb-2">ไฟล์ที่อัปโหลดแล้ว:</div>
-            <v-list density="compact" class="bg-grey-lighten-5 rounded">
-              <v-list-item v-for="file in getIndicatorFiles(indicator.id)" :key="file.id">
+            <div class="text-subtitle-2 mb-2 font-weight-bold">📎 ไฟล์ที่อัปโหลดแล้ว:</div>
+            <v-list density="compact" class="rounded" :bg-color="getListBgColor(idx)">
+              <v-list-item v-for="file in getIndicatorFiles(indicator.id)" :key="file.id" class="my-1">
                 <template v-slot:prepend>
-                  <v-icon :icon="getFileIcon(file.file_name)" color="primary"></v-icon>
+                  <v-icon :icon="getFileIcon(file.file_name)" :color="getIconColor(idx)" size="large"></v-icon>
                 </template>
-                <v-list-item-title>{{ file.file_name }}</v-list-item-title>
+                <v-list-item-title class="font-weight-medium">{{ file.file_name }}</v-list-item-title>
                 <v-list-item-subtitle>
                   {{ formatFileSize(file.size_bytes) }} | {{ formatDate(file.created_at) }}
                 </v-list-item-subtitle>
@@ -60,7 +67,7 @@
             @uploaded="handleFileUploaded"
             @error="handleUploadError"
           ></evidence-upload>
-        </div>
+        </v-card>
       </base-card>
     </template>
 
@@ -190,6 +197,17 @@ const formatFileSize = (bytes) => {
 
 const formatDate = (dateString) => dateString ? new Date(dateString).toLocaleDateString('th-TH',
   { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '';
+
+// Color schemes for topics and indicators
+const topicColors = ['blue-lighten-4', 'green-lighten-4', 'purple-lighten-4', 'orange-lighten-4', 'cyan-lighten-4', 'pink-lighten-4'];
+const indicatorColors = ['blue-lighten-5', 'green-lighten-5', 'purple-lighten-5', 'orange-lighten-5', 'cyan-lighten-5', 'pink-lighten-5'];
+const iconColors = ['blue-darken-2', 'green-darken-2', 'purple-darken-2', 'orange-darken-2', 'cyan-darken-2', 'pink-darken-2'];
+const listBgColors = ['blue-lighten-5', 'green-lighten-5', 'purple-lighten-5', 'orange-lighten-5', 'cyan-lighten-5', 'pink-lighten-5'];
+
+const getTopicColor = (idx) => topicColors[idx % topicColors.length];
+const getIndicatorColor = (idx) => indicatorColors[idx % indicatorColors.length];
+const getIconColor = (idx) => iconColors[idx % iconColors.length];
+const getListBgColor = (idx) => listBgColors[idx % listBgColors.length];
 
 onMounted(fetchPeriods);
 </script>
