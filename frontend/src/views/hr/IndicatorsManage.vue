@@ -1,16 +1,14 @@
 <template>
   <v-container fluid>
+    <v-btn variant="text" color="primary" :to="/admin" class="mb-2">
+      <v-icon icon="mdi-arrow-left" start></v-icon>กลับหน้าหลัก
+    </v-btn>
     <h1 class="text-h4 mb-4">จัดการตัวชี้วัด</h1>
     <v-row class="mb-4">
-      <v-col cols="12" md="6">
-        <v-select v-model="selectedPeriod" :items="periods" item-title="period_name" item-value="id"
-          label="เลือกรอบการประเมิน" variant="outlined" density="compact"
-          :loading="loadingPeriods" @update:modelValue="onPeriodChange"></v-select>
-      </v-col>
-      <v-col cols="12" md="6">
-        <v-select v-model="selectedTopic" :items="topics" item-title="topic_name" item-value="id"
+      <v-col cols="12">
+        <v-select v-model="selectedTopic" :items="topics" item-title="title_th" item-value="id"
           label="เลือกหัวข้อการประเมิน" variant="outlined" density="compact"
-          :loading="loadingTopics" :disabled="!selectedPeriod" @update:modelValue="fetchIndicators"></v-select>
+          :loading="loadingTopics" @update:modelValue="fetchIndicators"></v-select>
       </v-col>
     </v-row>
     <div v-if="selectedTopic" class="d-flex justify-space-between align-center mb-4">
@@ -20,8 +18,11 @@
       </v-btn>
     </div>
     <base-table v-if="selectedTopic" :headers="headers" :items="indicators" :loading="loading">
-      <template v-slot:item.weight_score="{ item }">{{ item.weight_score }}%</template>
-      <template v-slot:item.evaluation_type="{ item }">{{ getEvaluationTypeText(item.evaluation_type) }}</template>
+      <template v-slot:item.weight="{ item }">{{ item.weight }}</template>
+      <template v-slot:item.type="{ item }">{{ getEvaluationTypeText(item.type) }}</template>
+      <template v-slot:item.active="{ item }">
+        <status-chip :status="item.active ? 'active' : 'inactive'" />
+      </template>
       <template v-slot:item.actions="{ item }">
         <v-btn icon="mdi-pencil" size="small" variant="text" color="primary" @click="openDialog(item)"></v-btn>
         <v-btn icon="mdi-delete" size="small" variant="text" color="error" @click="confirmDelete(item)"></v-btn>
@@ -33,22 +34,24 @@
     <base-dialog v-model="dialog" :title="isEdit ? 'แก้ไขตัวชี้วัด' : 'เพิ่มตัวชี้วัด'"
       icon="mdi-chart-line" :loading="saving" @confirm="handleSave" @cancel="dialog = false">
       <v-form ref="formRef" v-model="valid">
-        <v-text-field v-model="form.indicator_name" label="ชื่อตัวชี้วัด"
+        <v-text-field v-model="form.code" label="รหัสตัวชี้วัด"
+          :rules="[v => !!v || 'กรุณากรอกรหัสตัวชี้วัด']" variant="outlined" density="compact" class="mb-3" :readonly="isEdit"></v-text-field>
+        <v-text-field v-model="form.name_th" label="ชื่อตัวชี้วัด"
           :rules="[v => !!v || 'กรุณากรอกชื่อตัวชี้วัด']" variant="outlined" density="compact" class="mb-3"></v-text-field>
-        <v-text-field v-model.number="form.weight_score" label="น้ำหนักคะแนน (%)" type="number"
-          :rules="[v => v !== null && v !== '' || 'กรุณากรอกน้ำหนักคะแนน',
-            v => v >= 0 && v <= 100 || 'น้ำหนักคะแนนต้องอยู่ระหว่าง 0-100']"
+        <v-text-field v-model.number="form.weight" label="น้ำหนัก" type="number"
+          :rules="[v => v !== null && v !== '' || 'กรุณากรอกน้ำหนัก', v => v >= 0 || 'น้ำหนักต้องมากกว่าหรือเท่ากับ 0']"
           variant="outlined" density="compact" class="mb-3"></v-text-field>
-        <v-select v-model="form.evaluation_type" :items="evaluationTypes" item-title="text" item-value="value"
+        <v-select v-model="form.type" :items="evaluationTypes" item-title="text" item-value="value"
           label="ประเภทการประเมิน" variant="outlined" density="compact" class="mb-3"></v-select>
         <v-textarea v-model="form.description" label="รายละเอียด (ไม่บังคับ)"
-          variant="outlined" density="compact" rows="3"></v-textarea>
+          variant="outlined" density="compact" rows="2" class="mb-3"></v-textarea>
+        <v-checkbox v-model="form.active" label="เปิดใช้งาน" color="primary" hide-details></v-checkbox>
       </v-form>
     </base-dialog>
     <base-dialog v-model="deleteDialog" title="ยืนยันการลบ" icon="mdi-alert" confirm-text="ลบ"
       confirm-color="error" :loading="deleting" @confirm="handleDelete" @cancel="deleteDialog = false">
       <v-alert type="warning" variant="tonal" class="mb-4">
-        คุณต้องการลบตัวชี้วัด "<strong>{{ deleteItem?.indicator_name }}</strong>" หรือไม่?
+        คุณต้องการลบตัวชี้วัด "<strong>{{ deleteItem?.name_th }}</strong>" หรือไม่?
       </v-alert>
       <p class="text-body-2">การลบจะไม่สามารถย้อนกลับได้</p>
     </base-dialog>
@@ -60,28 +63,26 @@ import { ref, onMounted } from 'vue';
 import { useNotificationStore } from '@/stores/notification';
 import BaseTable from '@/components/base/BaseTable.vue';
 import BaseDialog from '@/components/base/BaseDialog.vue';
-import periodService from '@/services/periodService';
+import StatusChip from '@/components/base/StatusChip.vue';
 import topicService from '@/services/topicService';
 
 const notificationStore = useNotificationStore();
 const headers = [
-  { title: 'ชื่อตัวชี้วัด', key: 'indicator_name', sortable: true },
-  { title: 'น้ำหนักคะแนน', key: 'weight_score', sortable: true },
-  { title: 'ประเภทการประเมิน', key: 'evaluation_type', sortable: true },
-  { title: 'รายละเอียด', key: 'description', sortable: false },
+  { title: 'รหัส', key: 'code', sortable: true },
+  { title: 'ชื่อตัวชี้วัด', key: 'name_th', sortable: true },
+  { title: 'น้ำหนัก', key: 'weight', sortable: true },
+  { title: 'ประเภท', key: 'type', sortable: true },
+  { title: 'สถานะ', key: 'active', sortable: true },
   { title: 'จัดการ', key: 'actions', sortable: false }
 ];
 const evaluationTypes = [
-  { text: 'แบบ 2 ทาง (ได้/ไม่ได้)', value: 'binary' },
-  { text: 'แบบมาตราส่วน 1-4', value: 'scale_1_4' },
-  { text: 'แบบกำหนดเอง', value: 'custom' }
+  { text: 'แบบมาตราส่วน 1-4', value: 'score_1_4' },
+  { text: 'แบบ ใช่/ไม่ใช่', value: 'yes_no' },
+  { text: 'แบบ URL ไฟล์', value: 'file_url' }
 ];
-const periods = ref([]);
 const topics = ref([]);
 const indicators = ref([]);
-const selectedPeriod = ref(null);
 const selectedTopic = ref(null);
-const loadingPeriods = ref(false);
 const loadingTopics = ref(false);
 const loading = ref(false);
 const dialog = ref(false);
@@ -92,40 +93,18 @@ const deleting = ref(false);
 const valid = ref(false);
 const formRef = ref(null);
 const deleteItem = ref(null);
-const form = ref({ indicator_name: '', weight_score: null, evaluation_type: 'binary', description: '', topic_id: null });
+const form = ref({ code: '', name_th: '', weight: null, type: 'score_1_4', description: '', topic_id: null, active: 1 });
 
 const getEvaluationTypeText = (type) => {
   const found = evaluationTypes.find(t => t.value === type);
   return found ? found.text : type;
 };
 
-const fetchPeriods = async () => {
-  loadingPeriods.value = true;
-  try {
-    const response = await periodService.getAll();
-    periods.value = response.data.data;
-  } catch (error) {
-    notificationStore.error('ไม่สามารถโหลดรอบการประเมินได้');
-  } finally {
-    loadingPeriods.value = false;
-  }
-};
-
-const onPeriodChange = async () => {
-  selectedTopic.value = null;
-  indicators.value = [];
-  if (!selectedPeriod.value) {
-    topics.value = [];
-    return;
-  }
-  await fetchTopics();
-};
-
 const fetchTopics = async () => {
   loadingTopics.value = true;
   try {
     const response = await topicService.getAll();
-    topics.value = response.data.data.filter(t => t.period_id === selectedPeriod.value);
+    topics.value = response.data.items || response.data.data || [];
   } catch (error) {
     notificationStore.error('ไม่สามารถโหลดหัวข้อการประเมินได้');
   } finally {
@@ -141,7 +120,7 @@ const fetchIndicators = async () => {
   loading.value = true;
   try {
     const response = await topicService.getIndicatorsByTopic(selectedTopic.value);
-    indicators.value = response.data.data;
+    indicators.value = response.data.items || response.data.data || [];
   } catch (error) {
     notificationStore.error('ไม่สามารถโหลดตัวชี้วัดได้');
   } finally {
@@ -151,7 +130,7 @@ const fetchIndicators = async () => {
 
 const openDialog = (item = null) => {
   isEdit.value = !!item;
-  form.value = item ? { ...item } : { indicator_name: '', weight_score: null, evaluation_type: 'binary', description: '', topic_id: selectedTopic.value };
+  form.value = item ? { ...item } : { code: '', name_th: '', weight: null, type: 'score_1_4', description: '', topic_id: selectedTopic.value, active: 1 };
   dialog.value = true;
 };
 
@@ -196,5 +175,5 @@ const handleDelete = async () => {
   }
 };
 
-onMounted(fetchPeriods);
+onMounted(fetchTopics);
 </script>

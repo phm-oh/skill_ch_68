@@ -2,6 +2,9 @@
   <v-container fluid>
     <v-row>
       <v-col cols="12">
+        <v-btn variant="text" color="primary" :to="/admin" class="mb-2">
+          <v-icon icon="mdi-arrow-left" start></v-icon>กลับหน้าหลัก
+        </v-btn>
         <div class="d-flex justify-space-between align-center mb-4">
           <h1 class="text-h4">รายงานการประเมิน</h1>
           <v-btn color="primary" @click="window.print()" :disabled="!selectedPeriod">
@@ -12,8 +15,8 @@
     </v-row>
     <v-row>
       <v-col cols="12" md="6">
-        <v-select v-model="selectedPeriod" :items="periods" item-title="period_name"
-          item-value="period_id" label="เลือกรอบการประเมิน" variant="outlined"
+        <v-select v-model="selectedPeriod" :items="periods" item-title="name_th"
+          item-value="id" label="เลือกรอบการประเมิน" variant="outlined"
           density="comfortable" prepend-inner-icon="mdi-calendar"
           @update:model-value="fetchReportData"></v-select>
       </v-col>
@@ -137,7 +140,7 @@ const getScoreColor = (score) => {
 const fetchPeriods = async () => {
   try {
     const response = await periodService.getAll();
-    periods.value = response.data.data;
+    periods.value = response.data.items || response.data.data || [];
   } catch (error) {
     notificationStore.error('ไม่สามารถโหลดรอบการประเมินได้');
   }
@@ -148,7 +151,7 @@ const fetchReportData = async () => {
   loading.value = true;
   try {
     const response = await evaluationService.getAll();
-    const allResults = response.data.data;
+    const allResults = response.data.items || response.data.data || [];
     const groupedData = {};
     const statusOrder = { draft: 0, submitted: 1, evaluated: 2, approved: 3 };
     allResults.filter(result => result.period_id === selectedPeriod.value).forEach(result => {
