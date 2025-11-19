@@ -1,5 +1,8 @@
 <template>
   <v-container fluid>
+    <v-btn variant="text" color="primary" to="/evaluatee" class="mb-2">
+      <v-icon icon="mdi-arrow-left" start></v-icon>กลับหน้าหลัก
+    </v-btn>
     <div class="d-flex justify-space-between align-center mb-4">
       <h1 class="text-h4">รายงานผลการประเมิน</h1>
       <v-btn color="primary" @click="window.print()" :disabled="!selectedPeriod">
@@ -8,7 +11,7 @@
     </div>
     <v-card class="mb-4">
       <v-card-text>
-        <v-select v-model="selectedPeriod" :items="periods" item-title="name" item-value="id"
+        <v-select v-model="selectedPeriod" :items="periods" item-title="name_th" item-value="id"
           label="เลือกรอบการประเมิน" variant="outlined" density="comfortable" @update:modelValue="fetchReportData" />
       </v-card-text>
     </v-card>

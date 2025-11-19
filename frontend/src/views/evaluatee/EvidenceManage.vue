@@ -1,5 +1,8 @@
 <template>
   <v-container fluid>
+    <v-btn variant="text" color="primary" to="/evaluatee" class="mb-2">
+      <v-icon icon="mdi-arrow-left" start></v-icon>กลับหน้าหลัก
+    </v-btn>
     <h1 class="text-h4 mb-4">จัดการหลักฐาน</h1>
 
     <base-card title="เลือกรอบการประเมิน" icon="mdi-calendar" class="mb-4">
