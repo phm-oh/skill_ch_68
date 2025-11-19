@@ -122,9 +122,9 @@ const topAssignments = computed(() => {
       assignmentMap.set(key, {
         id: assignment.id,
         evaluateeId: assignment.evaluatee_id,
-        evaluateeName: assignment.evaluatee?.name || 'ไม่ระบุ',
+        evaluateeName: assignment.evaluatee?.name_th || assignment.evaluatee?.name || 'ไม่ระบุ',
         periodId: assignment.period_id,
-        periodName: assignment.period?.name || 'ไม่ระบุ',
+        periodName: assignment.period?.name_th || assignment.period?.name || 'ไม่ระบุ',
         status: 'pending'
       });
     }
@@ -149,9 +149,11 @@ const fetchData = async () => {
       assignmentService.getMine(),
       evaluationService.getAll()
     ]);
-    assignments.value = assignmentsRes.data.data || [];
+    // Backend ส่ง { success: true, items: [...] }
+    assignments.value = assignmentsRes.data.items || assignmentsRes.data.data || [];
     const currentUserId = authStore.user?.id;
-    evaluations.value = (evaluationsRes.data.data || []).filter(e => e.evaluator_id === currentUserId);
+    const allEvaluations = evaluationsRes.data.items || evaluationsRes.data.data || [];
+    evaluations.value = allEvaluations.filter(e => e.evaluator_id === currentUserId);
   } catch (error) {
     notificationStore.error('ไม่สามารถโหลดข้อมูลได้');
   } finally {

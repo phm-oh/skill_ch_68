@@ -13,7 +13,7 @@
 
     <v-row v-if="activePeriods.length > 0">
       <v-col cols="12" v-for="period in activePeriods" :key="period.id">
-        <base-card :title="`รอบการประเมิน: ${period.name}`" icon="mdi-calendar-clock">
+        <base-card :title="`รอบการประเมิน: ${period.name_th || period.name}`" icon="mdi-calendar-clock">
           <v-row>
             <v-col cols="12" md="8">
               <div class="mb-3">
@@ -105,16 +105,19 @@ const fetchData = async () => {
   loading.value = true;
   try {
     const periodsRes = await periodService.getActive();
-    activePeriods.value = periodsRes.data.data;
+    // Backend ส่ง { success: true, items: [...] }
+    const periods = periodsRes.data.items || periodsRes.data.data || [];
+    activePeriods.value = Array.isArray(periods) ? periods : [periods].filter(Boolean);
 
     for (const period of activePeriods.value) {
       try {
         const evalRes = await evaluationService.getMyResults(period.id);
-        const results = evalRes.data.data || [];
+        const results = evalRes.data.items || evalRes.data.data || [];
         evaluationData.value[period.id] = { status: determineStatus(results), results };
 
         const topicsRes = await topicService.getAll();
-        const periodTopics = topicsRes.data.data.filter(t => t.period_id === period.id);
+        const allTopics = topicsRes.data.items || topicsRes.data.data || [];
+        const periodTopics = allTopics.filter(t => t.period_id === period.id);
 
         let totalIndicators = 0;
         let completedIndicators = 0;

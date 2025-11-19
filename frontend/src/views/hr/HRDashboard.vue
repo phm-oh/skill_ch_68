@@ -113,10 +113,15 @@ const fetchStats = async () => {
       assignmentService.getAll()
     ]);
 
-    stats.value.totalUsers = usersRes.data.data.length;
-    stats.value.totalPeriods = periodsRes.data.data.length;
-    stats.value.activePeriods = periodsRes.data.data.filter(p => p.is_active).length;
-    stats.value.totalAssignments = assignmentsRes.data.data.length;
+    // Backend ส่ง { success: true, items: [...] }
+    const users = usersRes.data.items || usersRes.data.data || [];
+    const periods = periodsRes.data.items || periodsRes.data.data || [];
+    const assignments = assignmentsRes.data.items || assignmentsRes.data.data || [];
+
+    stats.value.totalUsers = users.length;
+    stats.value.totalPeriods = periods.length;
+    stats.value.activePeriods = periods.filter(p => p.is_active).length;
+    stats.value.totalAssignments = assignments.length;
   } catch (error) {
     notificationStore.error('ไม่สามารถโหลดข้อมูลได้');
   } finally {
