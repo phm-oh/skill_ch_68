@@ -180,8 +180,18 @@ const handleSaveBulk = async () => {
       }
     }
 
-    await assignmentService.createBulk({ items });
-    notificationStore.success(`มอบหมายงานแบบ Bulk สำเร็จ (${items.length} รายการ)`);
+    const response = await assignmentService.createBulk({ items });
+    const result = response.data.data;
+
+    // แสดงผลลัพธ์
+    if (result.skipped > 0) {
+      notificationStore.success(
+        `สร้างสำเร็จ ${result.created} รายการ, ข้าม ${result.skipped} รายการที่ซ้ำ (จากทั้งหมด ${result.total} รายการ)`
+      );
+    } else {
+      notificationStore.success(`มอบหมายงานแบบ Bulk สำเร็จ (${result.created} รายการ)`);
+    }
+
     bulkDialog.value = false;
     await fetchAssignments();
   } catch (error) {

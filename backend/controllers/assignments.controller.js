@@ -92,11 +92,23 @@ exports.createBulk = async (req, res, next) => {
     }
 
     const result = await repo.createBulk(items);
-    res.status(201).json({ success: true, data: result });
-  } catch (e) {
-    if (e.message.includes('exists')) {
-      return res.status(409).json({ success: false, message: e.message });
+
+    // ถ้ามีการสร้างสำเร็จอย่างน้อย 1 รายการ ให้ถือว่าสำเร็จ
+    if (result.created > 0) {
+      res.status(201).json({
+        success: true,
+        data: result,
+        message: `Created ${result.created} assignments${result.skipped > 0 ? `, skipped ${result.skipped} duplicates` : ''}`
+      });
+    } else {
+      // ถ้าทุกรายการซ้ำหมด
+      res.status(200).json({
+        success: true,
+        data: result,
+        message: 'All assignments already exist'
+      });
     }
+  } catch (e) {
     next(e);
   }
 };

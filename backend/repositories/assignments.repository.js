@@ -116,21 +116,36 @@ exports.create = async (payload) => {
   return exports.findById(id);
 };
 
-// สร้างหลายรายการ
+// สร้างหลายรายการ (Skip รายการที่ซ้ำ)
 exports.createBulk = async (items) => {
+  const created = [];
+  const skipped = [];
+
   for (const item of items) {
     const exists = await exports.hasPairInPeriod({
       period_id: item.period_id,
       evaluator_id: item.evaluator_id,
       evaluatee_id: item.evaluatee_id
     });
+
     if (exists) {
-      throw new Error(`Assignment exists: evaluator ${item.evaluator_id} → evaluatee ${item.evaluatee_id}`);
+      skipped.push({
+        evaluator_id: item.evaluator_id,
+        evaluatee_id: item.evaluatee_id,
+        reason: 'already exists'
+      });
+    } else {
+      const [id] = await db(TABLE).insert(item);
+      created.push(id);
     }
   }
 
-  await db(TABLE).insert(items);
-  return { created: items.length };
+  return {
+    created: created.length,
+    skipped: skipped.length,
+    total: items.length,
+    details: { created, skipped }
+  };
 };
 
 // ลบ
