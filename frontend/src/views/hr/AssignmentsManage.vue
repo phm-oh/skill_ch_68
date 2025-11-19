@@ -167,8 +167,21 @@ const handleSaveBulk = async () => {
   if (!valid) return;
   saving.value = true;
   try {
-    await assignmentService.createBulk(bulkForm.value);
-    notificationStore.success('มอบหมายงานแบบ Bulk สำเร็จ');
+    // แปลง evaluator_ids และ evaluatee_ids เป็น items array
+    const items = [];
+    for (const evaluatorId of bulkForm.value.evaluator_ids) {
+      for (const evaluateeId of bulkForm.value.evaluatee_ids) {
+        items.push({
+          evaluator_id: evaluatorId,
+          evaluatee_id: evaluateeId,
+          period_id: bulkForm.value.period_id,
+          role_type: 'member'
+        });
+      }
+    }
+
+    await assignmentService.createBulk({ items });
+    notificationStore.success(`มอบหมายงานแบบ Bulk สำเร็จ (${items.length} รายการ)`);
     bulkDialog.value = false;
     await fetchAssignments();
   } catch (error) {
