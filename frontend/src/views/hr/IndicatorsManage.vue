@@ -1,6 +1,6 @@
 <template>
   <v-container fluid>
-    <v-btn variant="text" color="primary" :to="/admin" class="mb-2">
+    <v-btn variant="text" color="primary" to="/admin" class="mb-2">
       <v-icon icon="mdi-arrow-left" start></v-icon>กลับหน้าหลัก
     </v-btn>
     <h1 class="text-h4 mb-4">จัดการตัวชี้วัด</h1>

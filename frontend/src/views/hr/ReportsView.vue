@@ -2,7 +2,7 @@
   <v-container fluid>
     <v-row>
       <v-col cols="12">
-        <v-btn variant="text" color="primary" :to="/admin" class="mb-2">
+        <v-btn variant="text" color="primary" to="/admin" class="mb-2">
           <v-icon icon="mdi-arrow-left" start></v-icon>กลับหน้าหลัก
         </v-btn>
         <div class="d-flex justify-space-between align-center mb-4">
