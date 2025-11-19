@@ -1,5 +1,8 @@
 <template>
   <v-container fluid>
+    <v-btn variant="text" color="primary" to="/evaluator" class="mb-2">
+      <v-icon icon="mdi-arrow-left" start></v-icon>กลับหน้าหลัก
+    </v-btn>
     <h1 class="text-h4 mb-4">อนุมัติการประเมิน</h1>
     <v-card class="mb-4">
       <v-tabs v-model="selectedTab" bg-color="primary">

@@ -1,7 +1,12 @@
 <template>
   <v-container fluid>
     <div class="d-flex justify-space-between align-center mb-4">
-      <h1 class="text-h4">จัดการผู้ใช้</h1>
+      <div>
+        <v-btn variant="text" color="primary" to="/admin" class="mb-2">
+          <v-icon icon="mdi-arrow-left" start></v-icon>กลับหน้าหลัก
+        </v-btn>
+        <h1 class="text-h4">จัดการผู้ใช้</h1>
+      </div>
       <v-btn color="primary" @click="openCreateDialog">
         <v-icon icon="mdi-plus" start></v-icon>เพิ่มผู้ใช้
       </v-btn>
@@ -25,19 +30,16 @@
       @confirm="handleSave"
       @cancel="closeDialog">
       <v-form ref="formRef" @submit.prevent="handleSave">
-        <v-text-field v-model="form.username" label="ชื่อผู้ใช้" :rules="[v => !!v || 'กรุณากรอกชื่อผู้ใช้']" :readonly="isEdit" required></v-text-field>
-        <v-text-field v-if="!isEdit" v-model="form.password" label="รหัสผ่าน" type="password" :rules="[v => !!v || 'กรุณากรอกรหัสผ่าน']" required></v-text-field>
-        <v-text-field v-model="form.full_name" label="ชื่อ-นามสกุล" :rules="[v => !!v || 'กรุณากรอกชื่อ-นามสกุล']" required></v-text-field>
+        <v-text-field v-model="form.name_th" label="ชื่อ-นามสกุล" :rules="[v => !!v || 'กรุณากรอกชื่อ-นามสกุล']" required></v-text-field>
         <v-text-field v-model="form.email" label="อีเมล" type="email" :rules="emailRules" required></v-text-field>
-        <v-text-field v-model="form.department" label="แผนก"></v-text-field>
-        <v-text-field v-model="form.position" label="ตำแหน่ง"></v-text-field>
+        <v-text-field v-if="!isEdit" v-model="form.password" label="รหัสผ่าน" type="password" :rules="[v => !!v || 'กรุณากรอกรหัสผ่าน']" required></v-text-field>
         <v-select v-model="form.role" label="บทบาท" :items="roles" item-title="text" item-value="value" :rules="[v => !!v || 'กรุณาเลือกบทบาท']" required></v-select>
       </v-form>
     </BaseDialog>
 
     <BaseDialog v-model="deleteDialog" title="ยืนยันการลบ" icon="mdi-delete" confirm-text="ลบ" confirm-color="error" :loading="deleting" @confirm="handleDelete" @cancel="deleteDialog = false">
       <v-alert type="warning" variant="tonal">
-        คุณต้องการลบผู้ใช้ <strong>{{ selectedUser?.username }}</strong> ใช่หรือไม่?<br>การกระทำนี้ไม่สามารถยกเลิกได้
+        คุณต้องการลบผู้ใช้ <strong>{{ selectedUser?.name_th }}</strong> ใช่หรือไม่?<br>การกระทำนี้ไม่สามารถยกเลิกได้
       </v-alert>
     </BaseDialog>
   </v-container>
@@ -54,14 +56,11 @@ const notificationStore = useNotificationStore();
 const loading = ref(false), saving = ref(false), deleting = ref(false);
 const dialog = ref(false), deleteDialog = ref(false), isEdit = ref(false);
 const users = ref([]), selectedUser = ref(null), formRef = ref(null);
-const form = ref({ username: '', password: '', full_name: '', email: '', department: '', position: '', role: '' });
+const form = ref({ name_th: '', email: '', password: '', role: '' });
 
 const headers = [
-  { title: 'ชื่อผู้ใช้', key: 'username' },
-  { title: 'ชื่อ-นามสกุล', key: 'full_name' },
+  { title: 'ชื่อ-นามสกุล', key: 'name_th' },
   { title: 'อีเมล', key: 'email' },
-  { title: 'แผนก', key: 'department' },
-  { title: 'ตำแหน่ง', key: 'position' },
   { title: 'บทบาท', key: 'role', align: 'center' },
   { title: 'จัดการ', key: 'actions', align: 'center', sortable: false }
 ];
@@ -81,7 +80,7 @@ const fetchUsers = async () => {
   loading.value = true;
   try {
     const response = await userService.getAll();
-    users.value = response.data.data || [];
+    users.value = response.data.items || response.data.data || [];
   } catch (error) {
     notificationStore.error('ไม่สามารถโหลดข้อมูลผู้ใช้ได้');
   } finally {
@@ -89,7 +88,7 @@ const fetchUsers = async () => {
   }
 };
 
-const resetForm = () => ({ username: '', password: '', full_name: '', email: '', department: '', position: '', role: '' });
+const resetForm = () => ({ name_th: '', email: '', password: '', role: '' });
 
 const openCreateDialog = () => {
   isEdit.value = false;

@@ -1,12 +1,15 @@
 <template>
   <v-container fluid>
+    <v-btn variant="text" color="primary" to="/evaluatee" class="mb-2">
+      <v-icon icon="mdi-arrow-left" start></v-icon>กลับหน้าหลัก
+    </v-btn>
     <h1 class="text-h4 mb-4">จัดการหลักฐาน</h1>
 
     <base-card title="เลือกรอบการประเมิน" icon="mdi-calendar" class="mb-4">
       <v-select
         v-model="selectedPeriodId"
         :items="periods"
-        item-title="period_name"
+        item-title="name_th"
         item-value="id"
         label="รอบการประเมิน"
         variant="outlined"
@@ -19,8 +22,8 @@
       <base-card
         v-for="topic in topics"
         :key="topic.id"
-        :title="topic.topic_name"
-        :subtitle="`น้ำหนัก ${topic.weight_percentage}%`"
+        :title="topic.title_th"
+        :subtitle="`น้ำหนัก ${topic.weight}%`"
         icon="mdi-book-open-variant"
         class="mb-4"
       >
@@ -29,8 +32,8 @@
 
           <div class="d-flex align-center mb-3">
             <v-icon icon="mdi-checkbox-marked-circle-outline" class="mr-2" color="primary"></v-icon>
-            <span class="text-subtitle-1 font-weight-medium">{{ indicator.indicator_name }}</span>
-            <v-chip size="small" color="primary" class="ml-2">{{ indicator.weight_score }}%</v-chip>
+            <span class="text-subtitle-1 font-weight-medium">{{ indicator.name_th }}</span>
+            <v-chip size="small" color="primary" class="ml-2">{{ indicator.weight }}%</v-chip>
           </div>
 
           <div v-if="getIndicatorFiles(indicator.id).length > 0" class="mb-3">
@@ -107,9 +110,12 @@ const fetchPeriods = async () => {
       periodService.getAll(),
       periodService.getActive()
     ]);
-    periods.value = periodsRes.data.data;
-    if (activeRes.data.data) {
-      selectedPeriodId.value = activeRes.data.data.id;
+    // Backend ส่ง { success: true, items: [...] }
+    periods.value = periodsRes.data.items || periodsRes.data.data || [];
+    const activePeriods = activeRes.data.items || activeRes.data.data || [];
+    const activePeriod = activePeriods[0] || null;
+    if (activePeriod) {
+      selectedPeriodId.value = activePeriod.id;
       await loadTopicsAndIndicators();
     }
   } catch (error) {
@@ -122,14 +128,17 @@ const loadTopicsAndIndicators = async () => {
   loading.value = true;
   try {
     const topicsRes = await topicService.getAll();
-    const filteredTopics = topicsRes.data.data.filter(t => t.period_id === selectedPeriodId.value);
-    for (const topic of filteredTopics) {
+    // Backend ส่ง { success: true, items: [...] }
+    const allTopics = topicsRes.data.items || topicsRes.data.data || [];
+
+    for (const topic of allTopics) {
       const indicatorsRes = await topicService.getIndicatorsByTopic(topic.id);
-      topic.indicators = indicatorsRes.data.data;
+      topic.indicators = indicatorsRes.data.items || indicatorsRes.data.data || [];
     }
-    topics.value = filteredTopics;
+    topics.value = allTopics;
+
     const res = await uploadService.getMine();
-    uploadedFiles.value = res.data.data || [];
+    uploadedFiles.value = res.data.items || res.data.data || [];
   } catch (error) {
     notificationStore.error('ไม่สามารถโหลดข้อมูลได้');
   } finally {
@@ -141,7 +150,7 @@ const getIndicatorFiles = (indicatorId) => uploadedFiles.value.filter(f => f.ind
 
 const handleFileUploaded = async () => {
   const res = await uploadService.getMine();
-  uploadedFiles.value = res.data.data || [];
+  uploadedFiles.value = res.data.items || res.data.data || [];
   notificationStore.success('อัปโหลดไฟล์สำเร็จ');
 };
 
@@ -164,11 +173,18 @@ const deleteFile = async () => {
   }
 };
 
-const viewFile = (file) => window.open(file.url, '_blank');
+const viewFile = (file) => {
+  const fileUrl = file.file_url || file.url;
+  if (fileUrl) {
+    window.open(fileUrl, '_blank');
+  } else {
+    notificationStore.error('ไม่พบ URL ของไฟล์');
+  }
+};
 
 const downloadFile = (file) => {
   const link = document.createElement('a');
-  link.href = file.url;
+  link.href = file.file_url || file.url;
   link.download = file.file_name;
   link.click();
 };

@@ -132,19 +132,23 @@ router.beforeEach(async (to, from, next) => {
     return next('/login');
   }
 
-  // Check role permission
-  if (to.meta.role) {
-    if (!authStore.user) {
-      try {
-        await authStore.fetchCurrentUser();
-      } catch (error) {
-        return next('/login');
-      }
+  // If authenticated but user data not loaded, fetch it
+  if (requiresAuth && authStore.isAuthenticated && !authStore.user) {
+    try {
+      await authStore.fetchCurrentUser();
+    } catch (error) {
+      console.error('[Router] Failed to fetch user:', error);
+      return next('/login');
     }
+  }
 
+  // Check role permission
+  if (to.meta.role && authStore.user) {
     if (authStore.user.role !== to.meta.role) {
+      console.log('[Router] Role mismatch - User:', authStore.user.role, 'Required:', to.meta.role);
       const redirectPath = authStore.isAdmin ? '/admin' :
                           authStore.isEvaluator ? '/evaluator' : '/evaluatee';
+      console.log('[Router] Redirecting to:', redirectPath);
       return next(redirectPath);
     }
   }

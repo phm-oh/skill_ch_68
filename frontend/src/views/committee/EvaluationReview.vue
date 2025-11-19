@@ -16,20 +16,20 @@
     <v-row v-if="!loading">
       <v-col cols="12" md="8">
         <v-card v-for="topic in topics" :key="topic.id" class="mb-4">
-          <v-card-title class="bg-primary">{{ topic.topic_name }} ({{ topic.weight_percentage }}%)</v-card-title>
+          <v-card-title class="bg-primary">{{ topic.title_th }} ({{ topic.weight }}%)</v-card-title>
           <v-card-text>
             <div v-for="indicator in topic.indicators" :key="indicator.id" class="mb-4 pa-3 border rounded">
               <div class="d-flex justify-space-between mb-2">
-                <strong>{{ indicator.indicator_name }}</strong>
-                <v-chip size="small" color="primary">{{ indicator.weight_score }}%</v-chip>
+                <strong>{{ indicator.name_th }}</strong>
+                <v-chip size="small" color="primary">{{ indicator.weight }}%</v-chip>
               </div>
               <v-alert variant="tonal" density="compact" class="mb-3">
                 <div class="text-caption"><strong>ประเมินตนเอง:</strong> {{ indicator.self_selected_value || '-' }} | คะแนน: {{ (indicator.self_score || 0).toFixed(2) }}</div>
                 <div v-if="indicator.self_comment" class="text-body-2"><strong>ความเห็น:</strong> {{ indicator.self_comment }}</div>
               </v-alert>
-              <div class="text-caption text-grey mb-2">{{ getEvaluationTypeText(indicator.evaluation_type) }}</div>
+              <div class="text-caption text-grey mb-2">{{ getEvaluationTypeText(indicator.type) }}</div>
               <v-radio-group v-model="indicator.evaluator_selected_value" :inline="true" density="compact" @update:modelValue="updateScore(indicator)">
-                <v-radio v-for="option in getOptions(indicator.evaluation_type)" :key="option.value" :label="option.label" :value="option.value"></v-radio>
+                <v-radio v-for="option in getOptions(indicator.type)" :key="option.value" :label="option.label" :value="option.value"></v-radio>
               </v-radio-group>
               <v-textarea v-model="indicator.evaluator_comment" label="ความเห็นกรรมการ" variant="outlined" density="compact" rows="2" class="mt-2"></v-textarea>
               <div class="text-end">
@@ -95,30 +95,31 @@ const topics = ref([]);
 const evidences = ref([]);
 
 const evaluationTypes = [
-  { text: 'แบบ 2 ทาง (ได้/ไม่ได้)', value: 'binary' },
-  { text: 'แบบมาตราส่วน 1-4', value: 'scale_1_4' },
-  { text: 'แบบกำหนดเอง', value: 'custom' }
+  { text: 'แบบ ใช่/ไม่ใช่', value: 'yes_no' },
+  { text: 'แบบมาตราส่วน 1-4', value: 'score_1_4' },
+  { text: 'แบบ URL ไฟล์', value: 'file_url' }
 ];
 
 const getEvaluationTypeText = (type) => evaluationTypes.find(t => t.value === type)?.text || type;
 const getOptions = (type) => {
-  if (type === 'binary') return [{ label: 'ไม่ได้', value: 0 }, { label: 'ได้', value: 1 }];
-  if (type === 'scale_1_4') return [{ label: '1', value: 1 }, { label: '2', value: 2 }, { label: '3', value: 3 }, { label: '4', value: 4 }];
+  if (type === 'yes_no') return [{ label: 'ไม่ใช่', value: 0 }, { label: 'ใช่', value: 1 }];
+  if (type === 'score_1_4') return [{ label: '1', value: 1 }, { label: '2', value: 2 }, { label: '3', value: 3 }, { label: '4', value: 4 }];
+  if (type === 'file_url') return [{ label: 'ไม่มี', value: 0 }, { label: 'มี', value: 1 }];
   return [{ label: '0', value: 0 }, { label: '1', value: 1 }];
 };
 
 const updateScore = (indicator) => {
-  indicator.evaluator_score = calculateScore(indicator.evaluator_selected_value || 0, indicator.weight_score);
+  indicator.evaluator_score = calculateScore(indicator.evaluator_selected_value || 0, indicator.weight);
 };
 
 const topicScores = computed(() => topics.value.map(topic => ({
-  topic_name: topic.topic_name,
-  weight_percentage: topic.weight_percentage,
-  topic_score: calculateTopicScore(topic.indicators?.map(ind => ({ selected_value: ind.evaluator_selected_value || 0, weight_score: ind.weight_score })) || [], topic.weight_percentage)
+  topic_name: topic.title_th,
+  weight_percentage: topic.weight,
+  topic_score: calculateTopicScore(topic.indicators?.map(ind => ({ selected_value: ind.evaluator_selected_value || 0, weight_score: ind.weight })) || [], topic.weight)
 })));
 
 const totalScore = computed(() => topics.value.reduce((sum, topic) =>
-  sum + calculateTopicScore(topic.indicators?.map(ind => ({ selected_value: ind.evaluator_selected_value || 0, weight_score: ind.weight_score })) || [], topic.weight_percentage), 0
+  sum + calculateTopicScore(topic.indicators?.map(ind => ({ selected_value: ind.evaluator_selected_value || 0, weight_score: ind.weight })) || [], topic.weight), 0
 ));
 
 const canSave = computed(() => topics.value.every(topic => topic.indicators?.every(ind => ind.evaluator_selected_value !== undefined && ind.evaluator_selected_value !== null) ?? false));
@@ -131,7 +132,8 @@ const fetchData = async () => {
       uploadService.getForEvaluator(evaluateeId.value)
     ]);
 
-    const results = evalRes.data.data || [];
+    // Backend ส่ง { success: true, items: [...] } หรือ { data: [...] }
+    const results = evalRes.data.items || evalRes.data.data || [];
     if (results.length === 0) {
       notificationStore.error('ไม่พบข้อมูลการประเมิน');
       return;
@@ -143,18 +145,18 @@ const fetchData = async () => {
     const topicMap = new Map();
     results.forEach(result => {
       const topicId = result.indicator?.topic_id;
-      const topicName = result.indicator?.topic?.topic_name;
-      const topicWeight = result.indicator?.topic?.weight_percentage;
+      const topicName = result.indicator?.topic?.title_th;
+      const topicWeight = result.indicator?.topic?.weight;
 
       if (!topicMap.has(topicId)) {
-        topicMap.set(topicId, { id: topicId, topic_name: topicName, weight_percentage: topicWeight, indicators: [] });
+        topicMap.set(topicId, { id: topicId, title_th: topicName, weight: topicWeight, indicators: [] });
       }
 
       topicMap.get(topicId).indicators.push({
         id: result.indicator_id,
-        indicator_name: result.indicator?.indicator_name,
-        evaluation_type: result.indicator?.evaluation_type,
-        weight_score: result.indicator?.weight_score,
+        name_th: result.indicator?.name_th,
+        type: result.indicator?.type,
+        weight: result.indicator?.weight,
         self_selected_value: result.self_selected_value,
         self_score: result.self_score,
         self_comment: result.self_comment,
@@ -165,7 +167,7 @@ const fetchData = async () => {
     });
 
     topics.value = Array.from(topicMap.values());
-    evidences.value = evidenceRes.data.data || [];
+    evidences.value = evidenceRes.data.items || evidenceRes.data.data || [];
   } catch (error) {
     notificationStore.error('ไม่สามารถโหลดข้อมูลได้: ' + (error.response?.data?.message || error.message));
   } finally {
@@ -183,7 +185,7 @@ const saveEvaluation = async () => {
           indicator_id: indicator.id,
           evaluator_selected_value: indicator.evaluator_selected_value,
           evaluator_comment: indicator.evaluator_comment,
-          evaluator_score: calculateScore(indicator.evaluator_selected_value, indicator.weight_score)
+          evaluator_score: calculateScore(indicator.evaluator_selected_value, indicator.weight)
         });
       });
     });

@@ -1,7 +1,12 @@
 <template>
   <v-container fluid>
     <div class="d-flex justify-space-between align-center mb-4">
-      <h1 class="text-h4">จัดการรอบการประเมิน</h1>
+      <div>
+        <v-btn variant="text" color="primary" to="/admin" class="mb-2">
+          <v-icon icon="mdi-arrow-left" start></v-icon>กลับหน้าหลัก
+        </v-btn>
+        <h1 class="text-h4">จัดการรอบการประเมิน</h1>
+      </div>
       <v-btn color="primary" @click="openDialog()">
         <v-icon icon="mdi-plus" start></v-icon>
         เพิ่มรอบใหม่
@@ -25,11 +30,15 @@
     <base-dialog v-model="dialog" :title="isEdit ? 'แก้ไขรอบการประเมิน' : 'เพิ่มรอบการประเมิน'"
       icon="mdi-calendar" :loading="saving" @confirm="handleSave" @cancel="dialog = false">
       <v-form ref="formRef" v-model="valid">
-        <v-text-field v-model="form.period_name" label="ชื่อรอบการประเมิน"
+        <v-text-field v-model="form.code" label="รหัสรอบการประเมิน"
+          :rules="[v => !!v || 'กรุณากรอกรหัสรอบการประเมิน']" variant="outlined" density="compact" class="mb-3" :readonly="isEdit">
+        </v-text-field>
+        <v-text-field v-model="form.name_th" label="ชื่อรอบการประเมิน"
           :rules="[v => !!v || 'กรุณากรอกชื่อรอบการประเมิน']" variant="outlined" density="compact" class="mb-3">
         </v-text-field>
-        <v-textarea v-model="form.description" label="รายละเอียด" variant="outlined"
-          density="compact" rows="3" class="mb-3"></v-textarea>
+        <v-text-field v-model.number="form.buddhist_year" label="ปีพุทธศักราช" type="number"
+          :rules="[v => !!v || 'กรุณากรอกปีพุทธศักราช']" variant="outlined" density="compact" class="mb-3">
+        </v-text-field>
         <v-text-field v-model="form.start_date" label="วันที่เริ่มต้น" type="date"
           :rules="[v => !!v || 'กรุณาเลือกวันที่เริ่มต้น']" variant="outlined" density="compact" class="mb-3">
         </v-text-field>
@@ -44,7 +53,7 @@
     <base-dialog v-model="deleteDialog" title="ยืนยันการลบ" icon="mdi-alert" confirm-text="ลบ"
       confirm-color="error" :loading="deleting" @confirm="handleDelete" @cancel="deleteDialog = false">
       <v-alert type="warning" variant="tonal" class="mb-4">
-        คุณต้องการลบรอบการประเมิน "<strong>{{ deleteItem?.period_name }}</strong>" หรือไม่?
+        คุณต้องการลบรอบการประเมิน "<strong>{{ deleteItem?.name_th }}</strong>" หรือไม่?
       </v-alert>
       <p class="text-body-2">การลบจะไม่สามารถย้อนกลับได้</p>
     </base-dialog>
@@ -62,8 +71,9 @@ import { formatDate } from '@/utils/helpers';
 
 const notificationStore = useNotificationStore();
 const headers = [
-  { title: 'ชื่อรอบการประเมิน', key: 'period_name', sortable: true },
-  { title: 'รายละเอียด', key: 'description', sortable: false },
+  { title: 'รหัส', key: 'code', sortable: true },
+  { title: 'ชื่อรอบการประเมิน', key: 'name_th', sortable: true },
+  { title: 'ปีพุทธศักราช', key: 'buddhist_year', sortable: true },
   { title: 'วันที่เริ่มต้น', key: 'start_date', sortable: true },
   { title: 'วันที่สิ้นสุด', key: 'end_date', sortable: true },
   { title: 'สถานะ', key: 'is_active', sortable: true },
@@ -80,13 +90,13 @@ const deleting = ref(false);
 const valid = ref(false);
 const formRef = ref(null);
 const deleteItem = ref(null);
-const form = ref({ period_name: '', description: '', start_date: '', end_date: '', is_active: true });
+const form = ref({ code: '', name_th: '', buddhist_year: new Date().getFullYear() + 543, start_date: '', end_date: '', is_active: true });
 
 const fetchPeriods = async () => {
   loading.value = true;
   try {
     const response = await periodService.getAll();
-    periods.value = response.data.data;
+    periods.value = response.data.items || response.data.data || [];
   } catch (error) {
     notificationStore.error('ไม่สามารถโหลดข้อมูลได้');
   } finally {
@@ -96,7 +106,7 @@ const fetchPeriods = async () => {
 
 const openDialog = (item = null) => {
   isEdit.value = !!item;
-  form.value = item ? { ...item } : { period_name: '', description: '', start_date: '', end_date: '', is_active: true };
+  form.value = item ? { ...item } : { code: '', name_th: '', buddhist_year: new Date().getFullYear() + 543, start_date: '', end_date: '', is_active: true };
   dialog.value = true;
 };
 

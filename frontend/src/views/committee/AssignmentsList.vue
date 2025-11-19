@@ -1,5 +1,8 @@
 <template>
   <v-container fluid>
+    <v-btn variant="text" color="primary" to="/evaluator" class="mb-2">
+      <v-icon icon="mdi-arrow-left" start></v-icon>กลับหน้าหลัก
+    </v-btn>
     <h1 class="text-h4 mb-4">รายการงานประเมินที่ได้รับมอบหมาย</h1>
 
     <v-card class="mb-4">
@@ -72,8 +75,6 @@ const evaluations = ref([]);
 
 const headers = [
   { title: 'ชื่อ-สกุล', key: 'full_name', sortable: true },
-  { title: 'แผนก', key: 'department', sortable: true },
-  { title: 'ตำแหน่ง', key: 'position', sortable: true },
   { title: 'รอบการประเมิน', key: 'period_name', sortable: true },
   { title: 'สถานะการส่งงาน', key: 'submission_status', sortable: true, align: 'center' },
   { title: 'สถานะการประเมิน', key: 'evaluation_status', sortable: true, align: 'center' },
@@ -93,8 +94,6 @@ const combinedData = computed(() => {
       evaluatee_id: assignment.evaluatee_id,
       period_id: assignment.period_id,
       full_name: assignment.evaluatee_name || '-',
-      department: assignment.department || '-',
-      position: assignment.position || '-',
       period_name: assignment.period_name || '-',
       submission_status: evaluation?.is_submitted ? 'submitted' : 'not_submitted',
       evaluation_status: evaluation?.evaluation_status || 'pending'
@@ -132,8 +131,9 @@ const fetchData = async () => {
       evaluationService.getAll()
     ]);
 
-    assignments.value = assignmentsRes.data.data || [];
-    evaluations.value = evaluationsRes.data.data || [];
+    // Backend ส่ง { success: true, items: [...] }
+    assignments.value = assignmentsRes.data.items || assignmentsRes.data.data || [];
+    evaluations.value = evaluationsRes.data.items || evaluationsRes.data.data || [];
   } catch (error) {
     notificationStore.error('ไม่สามารถโหลดข้อมูลได้: ' + (error.response?.data?.message || error.message));
   } finally {

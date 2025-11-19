@@ -1,7 +1,12 @@
 <template>
   <v-container fluid>
     <div class="d-flex justify-space-between align-center mb-4">
-      <h1 class="text-h4">จัดการมอบหมายงานประเมิน</h1>
+      <div>
+        <v-btn variant="text" color="primary" to="/admin" class="mb-2">
+          <v-icon icon="mdi-arrow-left" start></v-icon>กลับหน้าหลัก
+        </v-btn>
+        <h1 class="text-h4">จัดการมอบหมายงานประเมิน</h1>
+      </div>
       <div class="d-flex gap-2">
         <v-btn color="secondary" @click="openDialog('bulk')">
           <v-icon icon="mdi-account-multiple-plus" start></v-icon>มอบหมายแบบ Bulk
@@ -12,7 +17,7 @@
       </div>
     </div>
 
-    <v-select v-model="selectedPeriodId" :items="periods" item-title="period_name" item-value="id"
+    <v-select v-model="selectedPeriodId" :items="periods" item-title="name_th" item-value="id"
       label="เลือกรอบการประเมิน" variant="outlined" density="compact" class="mb-4"
       @update:model-value="fetchAssignments"></v-select>
 
@@ -27,10 +32,10 @@
     <BaseDialog v-model="singleDialog" title="มอบหมายงานประเมิน (เดี่ยว)" icon="mdi-account-plus"
       :loading="saving" @confirm="handleSaveSingle" @cancel="singleDialog = false">
       <v-form ref="singleFormRef">
-        <v-select v-model="singleForm.evaluator_id" :items="evaluators" item-title="full_name" item-value="id"
+        <v-select v-model="singleForm.evaluator_id" :items="evaluators" item-title="name_th" item-value="id"
           label="เลือกกรรมการผู้ประเมิน" :rules="[v => !!v || 'กรุณาเลือกกรรมการ']"
           variant="outlined" density="compact" class="mb-3"></v-select>
-        <v-select v-model="singleForm.evaluatee_id" :items="evaluatees" item-title="full_name" item-value="id"
+        <v-select v-model="singleForm.evaluatee_id" :items="evaluatees" item-title="name_th" item-value="id"
           label="เลือกผู้รับการประเมิน" :rules="[v => !!v || 'กรุณาเลือกผู้รับการประเมิน']"
           variant="outlined" density="compact"></v-select>
       </v-form>
@@ -40,10 +45,10 @@
     <BaseDialog v-model="bulkDialog" title="มอบหมายงานประเมิน (Bulk)" icon="mdi-account-multiple-plus"
       :loading="saving" @confirm="handleSaveBulk" @cancel="bulkDialog = false">
       <v-form ref="bulkFormRef">
-        <v-select v-model="bulkForm.evaluator_ids" :items="evaluators" item-title="full_name" item-value="id"
+        <v-select v-model="bulkForm.evaluator_ids" :items="evaluators" item-title="name_th" item-value="id"
           label="เลือกกรรมการผู้ประเมิน (หลายคน)" :rules="[v => v?.length > 0 || 'กรุณาเลือกอย่างน้อย 1 คน']"
           variant="outlined" density="compact" multiple chips closable-chips class="mb-3"></v-select>
-        <v-select v-model="bulkForm.evaluatee_ids" :items="evaluatees" item-title="full_name" item-value="id"
+        <v-select v-model="bulkForm.evaluatee_ids" :items="evaluatees" item-title="name_th" item-value="id"
           label="เลือกผู้รับการประเมิน (หลายคน)" :rules="[v => v?.length > 0 || 'กรุณาเลือกอย่างน้อย 1 คน']"
           variant="outlined" density="compact" multiple chips closable-chips></v-select>
       </v-form>
@@ -95,7 +100,7 @@ const filteredAssignments = computed(() =>
 const fetchPeriods = async () => {
   try {
     const response = await periodService.getAll();
-    periods.value = response.data.data || [];
+    periods.value = response.data.items || response.data.data || [];
     if (periods.value.length > 0) selectedPeriodId.value = periods.value[0].id;
   } catch (error) {
     notificationStore.error('ไม่สามารถโหลดรอบการประเมินได้');
@@ -106,7 +111,7 @@ const fetchAssignments = async () => {
   loading.value = true;
   try {
     const response = await assignmentService.getAll();
-    assignments.value = response.data.data || [];
+    assignments.value = response.data.items || response.data.data || [];
   } catch (error) {
     notificationStore.error('ไม่สามารถโหลดข้อมูลการมอบหมายได้');
   } finally {
@@ -120,8 +125,8 @@ const fetchUsers = async () => {
       userService.getByRole('evaluator'),
       userService.getByRole('evaluatee')
     ]);
-    evaluators.value = evalResponse.data.data || [];
-    evaluatees.value = evaluResponse.data.data || [];
+    evaluators.value = evalResponse.data.items || evalResponse.data.data || [];
+    evaluatees.value = evaluResponse.data.items || evaluResponse.data.data || [];
   } catch (error) {
     notificationStore.error('ไม่สามารถโหลดข้อมูลผู้ใช้ได้');
   }
@@ -162,8 +167,31 @@ const handleSaveBulk = async () => {
   if (!valid) return;
   saving.value = true;
   try {
-    await assignmentService.createBulk(bulkForm.value);
-    notificationStore.success('มอบหมายงานแบบ Bulk สำเร็จ');
+    // แปลง evaluator_ids และ evaluatee_ids เป็น items array
+    const items = [];
+    for (const evaluatorId of bulkForm.value.evaluator_ids) {
+      for (const evaluateeId of bulkForm.value.evaluatee_ids) {
+        items.push({
+          evaluator_id: evaluatorId,
+          evaluatee_id: evaluateeId,
+          period_id: bulkForm.value.period_id,
+          role_type: 'member'
+        });
+      }
+    }
+
+    const response = await assignmentService.createBulk({ items });
+    const result = response.data.data;
+
+    // แสดงผลลัพธ์
+    if (result.skipped > 0) {
+      notificationStore.success(
+        `สร้างสำเร็จ ${result.created} รายการ, ข้าม ${result.skipped} รายการที่ซ้ำ (จากทั้งหมด ${result.total} รายการ)`
+      );
+    } else {
+      notificationStore.success(`มอบหมายงานแบบ Bulk สำเร็จ (${result.created} รายการ)`);
+    }
+
     bulkDialog.value = false;
     await fetchAssignments();
   } catch (error) {
