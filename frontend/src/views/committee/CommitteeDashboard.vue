@@ -161,7 +161,7 @@ const fetchData = async () => {
   }
 };
 
-const goToEvaluate = (item) => router.push(`/evaluator/evaluate/${item.evaluateeId}/${item.periodId}`);
+const goToEvaluate = (item) => router.push(`/evaluator/review/${item.evaluateeId}/${item.periodId}`);
 const handleLogout = async () => await authStore.logout();
 
 onMounted(() => fetchData());
