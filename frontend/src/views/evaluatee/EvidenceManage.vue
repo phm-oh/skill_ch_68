@@ -173,11 +173,18 @@ const deleteFile = async () => {
   }
 };
 
-const viewFile = (file) => window.open(file.url, '_blank');
+const viewFile = (file) => {
+  const fileUrl = file.file_url || file.url;
+  if (fileUrl) {
+    window.open(fileUrl, '_blank');
+  } else {
+    notificationStore.error('ไม่พบ URL ของไฟล์');
+  }
+};
 
 const downloadFile = (file) => {
   const link = document.createElement('a');
-  link.href = file.url;
+  link.href = file.file_url || file.url;
   link.download = file.file_name;
   link.click();
 };

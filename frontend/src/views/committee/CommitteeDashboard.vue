@@ -66,10 +66,24 @@ const quickActions = [
 ];
 
 const stats = computed(() => {
-  const pending = evaluations.value.filter(e => e.evaluator_score === null && e.self_score !== null).length;
-  const evaluated = evaluations.value.filter(e => e.evaluator_score !== null && e.approver_score === null).length;
-  const approved = evaluations.value.filter(e => e.approver_score !== null).length;
-  const total = evaluations.value.length;
+  // Count from assignments instead of evaluations for accurate stats
+  let pending = 0, evaluated = 0, approved = 0;
+
+  assignments.value.forEach(assignment => {
+    const evaluation = evaluations.value.find(
+      e => e.evaluatee_id === assignment.evaluatee_id && e.period_id === assignment.period_id
+    );
+
+    if (!evaluation || evaluation.evaluator_score === null) {
+      pending++;
+    } else if (evaluation.approver_score !== null) {
+      approved++;
+    } else if (evaluation.evaluator_score !== null) {
+      evaluated++;
+    }
+  });
+
+  const total = assignments.value.length;
   const progress = total > 0 ? Math.round(((evaluated + approved) / total) * 100) : 0;
   return { pending, evaluated, approved, progress };
 });

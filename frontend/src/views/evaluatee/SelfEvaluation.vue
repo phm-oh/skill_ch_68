@@ -114,8 +114,17 @@ const fetchData = async () => {
     const periodRes = await periodService.getActive();
     // Backend ส่ง { success: true, items: [period] }
     const periods = periodRes.data.items || periodRes.data.data || [];
-    activePeriod.value = periods[0] || null;
-    if (!activePeriod.value) return;
+    console.log('[SelfEvaluation] Active periods response:', periods);
+
+    activePeriod.value = Array.isArray(periods) && periods.length > 0 ? periods[0] : null;
+
+    if (!activePeriod.value) {
+      console.log('[SelfEvaluation] No active period found');
+      loading.value = false;
+      return;
+    }
+
+    console.log('[SelfEvaluation] Using period:', activePeriod.value);
 
     const topicsRes = await topicService.getAll();
     // Backend ส่ง { success: true, items: [...] }
@@ -131,7 +140,8 @@ const fetchData = async () => {
     topics.value = allTopics;
     await loadSavedResults();
   } catch (error) {
-    notificationStore.error('ไม่สามารถโหลดข้อมูลได้');
+    console.error('[SelfEvaluation] Error loading data:', error);
+    notificationStore.error('ไม่สามารถโหลดข้อมูลได้: ' + (error.response?.data?.message || error.message));
   } finally {
     loading.value = false;
   }

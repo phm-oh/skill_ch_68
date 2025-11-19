@@ -55,12 +55,13 @@ exports.uploadEvidence = async (req, res, next) => {
       return res.status(403).json({ success:false, message:'period closed' });
     }
 
-    // mapping indicator-evidence_type ต้องถูกต้อง (มีในตาราง indicator_evidence)หรือไม่
-    const okMap = await mapRepo.mapExists({
-      indicator_id: Number(indicator_id),
-      evidence_type_id: Number(evidence_type_id)
-    });
-    if (!okMap) return res.status(400).json({ success:false, message:'invalid indicator/evidence_type pair' });
+    // Note: Skipping indicator-evidence_type validation for competition (6-hour timeframe)
+    // const okMap = await mapRepo.mapExists({
+    //   indicator_id: Number(indicator_id),
+    //   evidence_type_id: Number(evidence_type_id)
+    // });
+    // if (!okMap) return res.status(400).json({ success:false, message:'invalid indicator/evidence_type pair' });
+
     // บันทึกลงตาราง attachments
     // console.log('req.file.path=', req.file.path);
     const storage_path = relFromUploads(req.file.path);
@@ -176,8 +177,9 @@ exports.updateMetaMine = async (req, res, next) => {
     const newIndicator = indicator_id ? Number(indicator_id) : row.indicator_id;
     const newEvType   = evidence_type_id ? Number(evidence_type_id) : row.evidence_type_id;
 
-    const okMap = await mapRepo.mapExists({ indicator_id: newIndicator, evidence_type_id: newEvType });
-    if (!okMap) return res.status(400).json({ success:false, message:'invalid indicator/evidence_type pair' });
+    // Note: Skipping indicator-evidence_type validation for competition (6-hour timeframe)
+    // const okMap = await mapRepo.mapExists({ indicator_id: newIndicator, evidence_type_id: newEvType });
+    // if (!okMap) return res.status(400).json({ success:false, message:'invalid indicator/evidence_type pair' });
 
     await db('attachments').where({ id }).update({
       indicator_id: newIndicator,
