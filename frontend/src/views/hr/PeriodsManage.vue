@@ -46,7 +46,7 @@
           :rules="[v => !!v || 'กรุณาเลือกวันที่สิ้นสุด',
             v => !form.start_date || v > form.start_date || 'วันที่สิ้นสุดต้องหลังวันที่เริ่มต้น']"
           variant="outlined" density="compact" class="mb-3"></v-text-field>
-        <v-checkbox v-model="form.is_active" label="เปิดใช้งาน" color="primary" hide-details></v-checkbox>
+        <!-- Removed checkbox - use eye icon button in table to toggle active status -->
       </v-form>
     </base-dialog>
 
@@ -147,7 +147,7 @@ const handleSave = async () => {
       buddhist_year: form.value.buddhist_year,
       start_date: form.value.start_date, // Already in YYYY-MM-DD format from input
       end_date: form.value.end_date, // Already in YYYY-MM-DD format from input
-      is_active: form.value.is_active ? 1 : 0
+      is_active: isEdit.value ? form.value.is_active : 1 // Keep existing value when editing, default to 1 when creating
     };
 
     if (isEdit.value) {

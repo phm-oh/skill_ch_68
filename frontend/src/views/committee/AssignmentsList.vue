@@ -83,11 +83,20 @@ const headers = [
 
 // รวมข้อมูล assignments และ evaluations
 const combinedData = computed(() => {
+  console.log('[AssignmentsList] assignments:', assignments.value);
+  console.log('[AssignmentsList] evaluations:', evaluations.value);
+
   return assignments.value.map(assignment => {
     // Get all evaluation results for this assignment
     const results = evaluations.value.filter(
       e => e.evaluatee_id === assignment.evaluatee_id && e.period_id === assignment.period_id
     );
+
+    console.log(`[AssignmentsList] Assignment ${assignment.evaluatee_name} (${assignment.evaluatee_id}/${assignment.period_id}):`, {
+      resultsCount: results.length,
+      results: results,
+      selfScores: results.map(r => r.self_score)
+    });
 
     // Determine submission and evaluation status
     let submissionStatus = 'not_submitted';
@@ -97,6 +106,12 @@ const combinedData = computed(() => {
       const anySubmitted = results.some(r => r.self_score !== null && r.self_score !== undefined);
       const allEvaluated = results.every(r => r.evaluator_score !== null && r.evaluator_score !== undefined);
       const anyApproved = results.some(r => r.status === 'approved');
+
+      console.log(`[AssignmentsList] Status check for ${assignment.evaluatee_name}:`, {
+        anySubmitted,
+        allEvaluated,
+        anyApproved
+      });
 
       if (anySubmitted) {
         submissionStatus = 'submitted';
