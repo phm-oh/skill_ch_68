@@ -137,38 +137,46 @@ const fetchReportData = async () => {
   if (!selectedPeriod.value) return;
   loading.value = true;
   try {
+    console.log('[MyReport] Fetching for period:', selectedPeriod.value);
     const [resultsRes, summaryRes] = await Promise.all([
       evaluationService.getMyResults(selectedPeriod.value),
-      evaluationService.getSummary(authStore.userId, selectedPeriod.value)
+      evaluationService.getSummary(authStore.user.id, selectedPeriod.value)
     ]);
-    const results = resultsRes.data.data || [];
+
+    const results = resultsRes.data.items || resultsRes.data.data || [];
     const summaryData = summaryRes.data.data || {};
 
+    console.log('[MyReport] Results:', results);
+    console.log('[MyReport] Summary:', summaryData);
+
     tableData.value = results.map(r => ({
-      topic_name: r.topic_name || '-',
+      topic_name: r.topic_title || r.topic_name || '-',
       indicator_name: r.indicator_name || '-',
-      self_score: r.self_score,
-      evaluator_score: r.evaluator_score,
-      difference: (r.evaluator_score || 0) - (r.self_score || 0),
-      status: r.evaluator_score !== null ? 'evaluated' : 'pending'
+      self_score: parseFloat(r.self_score) || 0,
+      evaluator_score: parseFloat(r.evaluator_score) || 0,
+      difference: (parseFloat(r.evaluator_score) || 0) - (parseFloat(r.self_score) || 0),
+      status: r.evaluator_score !== null && r.evaluator_score !== undefined ? 'evaluated' : 'pending'
     }));
 
     summary.value = {
-      totalScore: summaryData.total_score || 0,
+      totalScore: summaryData.total_score || summaryData.final_score || 0,
       maxScore: 100,
       topicScores: summaryData.topic_scores || [],
       selfTotal: summaryData.self_total || 0,
-      evaluatorTotal: summaryData.evaluator_total || 0
+      evaluatorTotal: summaryData.evaluator_total || summaryData.total_score || 0
     };
 
-    comments.value.self = results.filter(r => r.self_comment).map(r => ({
-      indicator_name: r.indicator_name, comment: r.self_comment
+    comments.value.self = results.filter(r => r.self_note).map(r => ({
+      indicator_name: r.indicator_name,
+      comment: r.self_note
     }));
-    comments.value.evaluator = results.filter(r => r.evaluator_comment).map(r => ({
-      indicator_name: r.indicator_name, comment: r.evaluator_comment
+    comments.value.evaluator = results.filter(r => r.evaluator_note).map(r => ({
+      indicator_name: r.indicator_name,
+      comment: r.evaluator_note
     }));
   } catch (error) {
-    notificationStore.error('ไม่สามารถโหลดข้อมูลรายงานได้');
+    console.error('[MyReport] Fetch error:', error);
+    notificationStore.error('ไม่สามารถโหลดข้อมูลรายงานได้: ' + (error.response?.data?.message || error.message));
   } finally {
     loading.value = false;
   }

@@ -78,6 +78,7 @@ import { useNotificationStore } from '@/stores/notification';
 import BaseTable from '@/components/base/BaseTable.vue';
 import BaseDialog from '@/components/base/BaseDialog.vue';
 import StatusChip from '@/components/base/StatusChip.vue';
+import assignmentService from '@/services/assignmentService';
 import evaluationService from '@/services/evaluationService';
 
 const router = useRouter();
@@ -86,6 +87,7 @@ const notificationStore = useNotificationStore();
 const loading = ref(false);
 const approving = ref(false);
 const selectedTab = ref('pending');
+const assignments = ref([]);
 const evaluations = ref([]);
 const selected = ref([]);
 const approveDialog = ref({ show: false, isBulk: false, items: [] });
@@ -105,15 +107,57 @@ const headers = computed(() =>
     : baseHeaders
 );
 
+// Combine assignments with their evaluation status
+const combinedData = computed(() => {
+  console.log('[ApprovalPage] assignments:', assignments.value);
+  console.log('[ApprovalPage] evaluations:', evaluations.value);
+
+  return assignments.value.map(assignment => {
+    // Get all evaluation results for this assignment
+    const results = evaluations.value.filter(
+      e => e.evaluatee_id === assignment.evaluatee_id && e.period_id === assignment.period_id
+    );
+
+    // Determine evaluation status
+    let status = 'pending';
+    let totalScore = 0;
+
+    if (results.length > 0) {
+      const allEvaluated = results.every(r => r.evaluator_score !== null && r.evaluator_score !== undefined);
+      const anyApproved = results.some(r => r.status === 'approved');
+
+      if (anyApproved) {
+        status = 'approved';
+      } else if (allEvaluated) {
+        status = 'evaluated';
+      }
+
+      // Calculate total score
+      totalScore = results.reduce((sum, r) => sum + (parseFloat(r.evaluator_score) || 0), 0);
+    }
+
+    return {
+      id: `${assignment.evaluatee_id}-${assignment.period_id}`,
+      evaluatee_id: assignment.evaluatee_id,
+      period_id: assignment.period_id,
+      full_name: assignment.evaluatee_name || '-',
+      department: assignment.department_name || '-',
+      period_name: assignment.period_name || '-',
+      total_score: totalScore.toFixed(2),
+      status: status,
+      results: results
+    };
+  });
+});
+
 const filteredItems = computed(() => {
-  const filtered = evaluations.value.filter(e => e.evaluator_id === authStore.userId);
-  const status = selectedTab.value === 'pending' ? 'evaluated' : 'approved';
-  return filtered.filter(e => e.status === status);
+  const targetStatus = selectedTab.value === 'pending' ? 'evaluated' : 'approved';
+  return combinedData.value.filter(item => item.status === targetStatus);
 });
 
 const counts = computed(() => ({
-  pending: evaluations.value.filter(e => e.status === 'evaluated' && e.evaluator_id === authStore.userId).length,
-  approved: evaluations.value.filter(e => e.status === 'approved' && e.evaluator_id === authStore.userId).length
+  pending: combinedData.value.filter(item => item.status === 'evaluated').length,
+  approved: combinedData.value.filter(item => item.status === 'approved').length
 }));
 
 const isSelected = (item) => selected.value.some(s => s.id === item.id);
@@ -141,14 +185,28 @@ const handleApprove = async () => {
   approving.value = true;
   try {
     const items = approveDialog.value.items;
-    await Promise.all(items.map(item =>
-      evaluationService.evaluate({ result_id: item.id, status: 'approved' })
-    ));
+
+    // Approve all evaluation results for each item
+    for (const item of items) {
+      if (item.results && item.results.length > 0) {
+        await Promise.all(item.results.map(result =>
+          // Update each evaluation result to approved status
+          evaluationService.evaluate({
+            evaluatee_id: item.evaluatee_id,
+            indicator_id: result.indicator_id,
+            period_id: item.period_id,
+            score: result.evaluator_score
+          })
+        ));
+      }
+    }
+
     notificationStore.success(`อนุมัติการประเมินสำเร็จ ${items.length} รายการ`);
     selected.value = [];
     closeApproveDialog();
     await fetchData();
   } catch (error) {
+    console.error('[ApprovalPage] Approve error:', error);
     notificationStore.error('ไม่สามารถอนุมัติได้: ' + (error.response?.data?.message || error.message));
   } finally {
     approving.value = false;
@@ -158,9 +216,28 @@ const handleApprove = async () => {
 const fetchData = async () => {
   loading.value = true;
   try {
-    const response = await evaluationService.getAll();
-    evaluations.value = response.data.data || [];
+    console.log('[ApprovalPage] Fetching data...');
+    const assignmentsRes = await assignmentService.getMine();
+    assignments.value = assignmentsRes.data.items || assignmentsRes.data.data || [];
+
+    console.log('[ApprovalPage] Assignments:', assignments.value);
+
+    // Fetch evaluations for each assignment
+    const evaluationPromises = assignments.value.map(assignment =>
+      evaluationService.getByEvaluatee(assignment.evaluatee_id, assignment.period_id)
+        .then(res => res.data.items || res.data.data || [])
+        .catch(err => {
+          console.error(`[ApprovalPage] Error fetching evaluations for ${assignment.evaluatee_id}:`, err);
+          return [];
+        })
+    );
+
+    const evaluationResults = await Promise.all(evaluationPromises);
+    evaluations.value = evaluationResults.flat();
+
+    console.log('[ApprovalPage] Evaluations:', evaluations.value);
   } catch (error) {
+    console.error('[ApprovalPage] Fetch error:', error);
     notificationStore.error('ไม่สามารถโหลดข้อมูลได้: ' + (error.response?.data?.message || error.message));
   } finally {
     loading.value = false;

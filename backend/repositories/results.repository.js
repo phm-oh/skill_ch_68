@@ -152,12 +152,16 @@ exports.saveBulk = async (evaluateeId, periodId, items, scoreType, isSubmitted =
     } else if (scoreType === 'evaluator_score') {
       updateData = {
         evaluator_score: item.evaluator_score,
-        evaluator_note: item.evaluator_note || null
+        evaluator_note: item.evaluator_note || null,
+        evaluated_at: db.fn.now(),
+        status: 'evaluated'
       };
       insertData = {
         ...insertData,
         evaluator_score: item.evaluator_score,
-        evaluator_note: item.evaluator_note || null
+        evaluator_note: item.evaluator_note || null,
+        evaluated_at: db.fn.now(),
+        status: 'evaluated'
       };
     }
 

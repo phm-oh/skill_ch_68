@@ -43,10 +43,14 @@
         <base-card title="หลักฐานที่อัปโหลด" icon="mdi-file-document" class="mb-4">
           <v-list v-if="evidences.length > 0">
             <v-list-item v-for="evidence in evidences" :key="evidence.id">
-              <v-list-item-title>{{ evidence.file_name }}</v-list-item-title>
+              <template v-slot:prepend>
+                <v-icon :icon="evidence.evidence_type === 'pdf' ? 'mdi-file-pdf' : 'mdi-image'" color="primary"></v-icon>
+              </template>
+              <v-list-item-title>{{ evidence.file_name || evidence.indicator_name }}</v-list-item-title>
+              <v-list-item-subtitle v-if="evidence.description">{{ evidence.description }}</v-list-item-subtitle>
               <template v-slot:append>
-                <v-btn :href="evidence.file_url" target="_blank" size="small" color="primary" variant="text">
-                  <v-icon icon="mdi-download"></v-icon>
+                <v-btn :href="evidence.file_url || evidence.file_path" target="_blank" size="small" color="primary" variant="tonal">
+                  <v-icon icon="mdi-eye" start></v-icon>ดู
                 </v-btn>
               </template>
             </v-list-item>
