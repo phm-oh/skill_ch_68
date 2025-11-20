@@ -98,7 +98,7 @@ exports.saveEvaluator = async (evaluateeId, indicatorId, periodId, score) => {
 };
 
 // บันทึกหลายรายการ
-exports.saveBulk = async (evaluateeId, periodId, items, scoreType) => {
+exports.saveBulk = async (evaluateeId, periodId, items, scoreType, isSubmitted = false) => {
   for (const item of items) {
     const exists = await exports.exists(evaluateeId, item.indicator_id, periodId);
 
@@ -120,6 +120,14 @@ exports.saveBulk = async (evaluateeId, periodId, items, scoreType) => {
         self_score: item.self_score,
         self_note: item.self_comment || null
       };
+
+      // Update status and timestamp if submitted
+      if (isSubmitted) {
+        updateData.status = 'submitted';
+        updateData.self_submitted_at = db.fn.now();
+        insertData.status = 'submitted';
+        insertData.self_submitted_at = db.fn.now();
+      }
     } else if (scoreType === 'evaluator_score') {
       updateData = {
         evaluator_score: item.evaluator_score,

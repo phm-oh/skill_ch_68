@@ -64,11 +64,11 @@ exports.saveSelf = async (req, res, next) => {
 exports.saveSelfBulk = async (req, res, next) => {
   try {
     const userId = req.user.id;
-    const { period_id, items } = req.body;
+    const { period_id, items, is_submitted } = req.body;
     if (!period_id) return res.status(400).json({ success: false, message: 'period_id required' });
     if (!Array.isArray(items)) return res.status(400).json({ success: false, message: 'items array required' });
 
-    const result = await repo.saveBulk(userId, period_id, items, 'self_score');
+    const result = await repo.saveBulk(userId, period_id, items, 'self_score', is_submitted);
     res.json({ success: true, data: result });
   } catch (e) {
     next(e);
