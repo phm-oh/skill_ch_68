@@ -74,11 +74,6 @@
               </div>
               <span v-else class="text-grey">-</span>
             </template>
-            <template #item.actions="{ item }">
-              <v-btn size="small" color="primary" variant="text" @click="viewDetail(item)">
-                <v-icon icon="mdi-eye" start></v-icon>ดูรายละเอียด
-              </v-btn>
-            </template>
           </base-table>
         </base-card>
       </v-col>
@@ -89,7 +84,6 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue';
-import { useRouter } from 'vue-router';
 import { useNotificationStore } from '@/stores/notification';
 import periodService from '@/services/periodService';
 import evaluationService from '@/services/evaluationService';
@@ -98,7 +92,6 @@ import BaseTable from '@/components/base/BaseTable.vue';
 import StatusChip from '@/components/base/StatusChip.vue';
 import LoadingOverlay from '@/components/base/LoadingOverlay.vue';
 
-const router = useRouter();
 const notificationStore = useNotificationStore();
 const loading = ref(false);
 const periods = ref([]);
@@ -107,16 +100,13 @@ const reportData = ref([]);
 
 const headers = [
   { title: 'ชื่อ-นามสกุล', key: 'full_name', sortable: true },
-  { title: 'แผนก', key: 'department', sortable: true },
   { title: 'สถานะ', key: 'status', sortable: true },
-  { title: 'คะแนนรวม', key: 'total_score', sortable: true, align: 'center' },
-  { title: 'จัดการ', key: 'actions', sortable: false, align: 'center' }
+  { title: 'คะแนนรวม', key: 'total_score', sortable: true, align: 'center' }
 ];
 
 const reportItems = computed(() => reportData.value.map(item => ({
   evaluatee_id: item.evaluatee_id,
-  full_name: item.evaluatee_name || '-',
-  department: item.department || '-',
+  full_name: item.evaluatee_name || item.name_th || '-',
   status: item.status || 'draft',
   total_score: item.total_score
 })));
@@ -159,8 +149,7 @@ const fetchReportData = async () => {
       if (!groupedData[key]) {
         groupedData[key] = {
           evaluatee_id: result.evaluatee_id,
-          evaluatee_name: result.evaluatee_name,
-          department: result.department,
+          evaluatee_name: result.evaluatee_name || result.name_th,
           status: result.status || 'draft',
           total_score: null
         };
@@ -178,10 +167,6 @@ const fetchReportData = async () => {
   } finally {
     loading.value = false;
   }
-};
-
-const viewDetail = (item) => {
-  router.push(`/admin/reports/${item.evaluatee_id}/${selectedPeriod.value}`);
 };
 
 onMounted(() => { fetchPeriods(); });

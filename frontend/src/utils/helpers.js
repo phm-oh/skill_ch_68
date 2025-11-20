@@ -20,8 +20,10 @@ export const formatDateTime = (dateString) => {
   }).format(date);
 };
 
-export const calculateScore = (selectedValue, weight) => {
-  return selectedValue * weight;
+export const calculateScore = (selectedValue, weight, maxValue = 4) => {
+  // Normalize score based on max value (default 4 for score_1_4 type)
+  // For yes_no or file_url, maxValue should be 1
+  return (selectedValue / maxValue) * weight;
 };
 
 export const calculateTopicScore = (indicators, topicWeight) => {

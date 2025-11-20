@@ -154,14 +154,14 @@ exports.saveBulk = async (evaluateeId, periodId, items, scoreType, isSubmitted =
         evaluator_score: item.evaluator_score,
         evaluator_note: item.evaluator_note || null,
         evaluated_at: db.fn.now(),
-        status: 'evaluated'
+        status: 'approved'
       };
       insertData = {
         ...insertData,
         evaluator_score: item.evaluator_score,
         evaluator_note: item.evaluator_note || null,
         evaluated_at: db.fn.now(),
-        status: 'evaluated'
+        status: 'approved'
       };
     }
 
@@ -179,28 +179,34 @@ exports.saveBulk = async (evaluateeId, periodId, items, scoreType, isSubmitted =
 // คำนวณคะแนนรวม
 exports.calculateFinal = async (evaluateeId, periodId) => {
   const results = await db(TABLE)
-    .select('evaluation_results.*', 'indicators.weight')
+    .select('evaluation_results.*', 'indicators.weight', 'indicators.type')
     .leftJoin('indicators', 'evaluation_results.indicator_id', 'indicators.id')
     .where({ 'evaluation_results.evaluatee_id': evaluateeId, 'evaluation_results.period_id': periodId });
 
-  let totalWeighted = 0;
-  let totalWeight = 0;
+  let totalScore = 0;
+  let selfTotal = 0;
+  let evaluatorTotal = 0;
 
   for (const r of results) {
-    const score = r.evaluator_score !== null ? r.evaluator_score : r.self_score;
-    if (score !== null && r.weight !== null) {
-      totalWeighted += score * r.weight;
-      totalWeight += r.weight;
-    }
-  }
+    // Scores are already calculated as (selectedValue / maxValue) * weight
+    // So we just need to sum them up
+    const selfScore = parseFloat(r.self_score) || 0;
+    const evaluatorScore = parseFloat(r.evaluator_score) || 0;
 
-  const finalScore = totalWeight > 0 ? totalWeighted / totalWeight : 0;
+    selfTotal += selfScore;
+    evaluatorTotal += evaluatorScore;
+
+    // Use evaluator score if available, otherwise self score
+    totalScore += evaluatorScore > 0 ? evaluatorScore : selfScore;
+  }
 
   return {
     evaluatee_id: evaluateeId,
     period_id: periodId,
-    final_score: finalScore,
-    total_weight: totalWeight
+    total_score: totalScore,
+    final_score: totalScore,
+    self_total: selfTotal,
+    evaluator_total: evaluatorTotal
   };
 };
 

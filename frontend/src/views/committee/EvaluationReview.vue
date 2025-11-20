@@ -7,9 +7,7 @@
 
     <base-card v-if="evaluatee" :title="evaluatee.name" icon="mdi-account" class="mb-4">
       <v-row>
-        <v-col cols="12" md="4"><strong>แผนก:</strong> {{ evaluatee.department || '-' }}</v-col>
-        <v-col cols="12" md="4"><strong>ตำแหน่ง:</strong> {{ evaluatee.position || '-' }}</v-col>
-        <v-col cols="12" md="4"><strong>รอบการประเมิน:</strong> {{ period?.name || '-' }}</v-col>
+        <v-col cols="12"><strong>รอบการประเมิน:</strong> {{ period?.name || '-' }}</v-col>
       </v-row>
     </base-card>
 
@@ -44,12 +42,12 @@
           <v-list v-if="evidences.length > 0">
             <v-list-item v-for="evidence in evidences" :key="evidence.id">
               <template v-slot:prepend>
-                <v-icon :icon="evidence.evidence_type === 'pdf' ? 'mdi-file-pdf' : 'mdi-image'" color="primary"></v-icon>
+                <v-icon :icon="evidence.mime_type?.includes('pdf') ? 'mdi-file-pdf' : 'mdi-image'" color="primary"></v-icon>
               </template>
-              <v-list-item-title>{{ evidence.file_name || evidence.indicator_name }}</v-list-item-title>
-              <v-list-item-subtitle v-if="evidence.description">{{ evidence.description }}</v-list-item-subtitle>
+              <v-list-item-title>{{ evidence.file_name }}</v-list-item-title>
+              <v-list-item-subtitle v-if="evidence.size_bytes">ขนาด: {{ (evidence.size_bytes / 1024).toFixed(2) }} KB</v-list-item-subtitle>
               <template v-slot:append>
-                <v-btn :href="evidence.file_url || evidence.file_path" target="_blank" size="small" color="primary" variant="tonal">
+                <v-btn :href="evidence.url" target="_blank" size="small" color="primary" variant="tonal">
                   <v-icon icon="mdi-eye" start></v-icon>ดู
                 </v-btn>
               </template>
@@ -118,7 +116,9 @@ const formatScore = (score) => {
 };
 
 const updateScore = (indicator) => {
-  indicator.evaluator_score = calculateScore(indicator.evaluator_selected_value || 0, indicator.weight);
+  // Determine max value based on indicator type
+  const maxValue = indicator.type === 'score_1_4' ? 4 : 1;
+  indicator.evaluator_score = calculateScore(indicator.evaluator_selected_value || 0, indicator.weight, maxValue);
 };
 
 const topicScores = computed(() => topics.value.map(topic => ({
@@ -158,9 +158,7 @@ const fetchData = async () => {
 
     // ข้อมูล evaluatee และ period จาก flat structure
     evaluatee.value = {
-      name: results[0].evaluatee_name,
-      department: results[0].department_name || '-',
-      position: '-' // Position not available in database
+      name: results[0].evaluatee_name
     };
     period.value = {
       name: results[0].period_name
@@ -213,7 +211,8 @@ const fetchData = async () => {
     console.log('[EvaluationReview] Topics:', topics.value);
     console.log('[EvaluationReview] Topics count:', topics.value.length);
 
-    evidences.value = evidenceRes.data.items || evidenceRes.data.data || [];
+    // Backend returns { success: true, data: [...] } directly
+    evidences.value = evidenceRes.data.data || [];
     console.log('[EvaluationReview] Evidences:', evidences.value);
   } catch (error) {
     console.error('[EvaluationReview] Fetch error:', error);
@@ -230,9 +229,10 @@ const saveEvaluation = async () => {
     const items = [];
     topics.value.forEach(topic => {
       topic.indicators.forEach(indicator => {
+        const maxValue = indicator.type === 'score_1_4' ? 4 : 1;
         items.push({
           indicator_id: indicator.id,
-          evaluator_score: calculateScore(indicator.evaluator_selected_value, indicator.weight),
+          evaluator_score: calculateScore(indicator.evaluator_selected_value, indicator.weight, maxValue),
           evaluator_note: indicator.evaluator_comment
         });
       });
@@ -246,7 +246,7 @@ const saveEvaluation = async () => {
 
     console.log('[EvaluationReview] Saving evaluation:', data);
     await evaluationService.evaluateBulk(data);
-    notificationStore.success('บันทึกการประเมินสำเร็จ');
+    notificationStore.success('บันทึกและอนุมัติการประเมินสำเร็จ');
   } catch (error) {
     console.error('[EvaluationReview] Save error:', error);
     notificationStore.error('เกิดข้อผิดพลาด: ' + (error.response?.data?.message || error.message));

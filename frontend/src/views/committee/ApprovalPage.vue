@@ -53,7 +53,7 @@
           <v-list-item v-for="item in approveDialog.items" :key="item.id">
             <template #prepend><v-icon icon="mdi-account" color="primary"></v-icon></template>
             <v-list-item-title>{{ item.full_name }}</v-list-item-title>
-            <v-list-item-subtitle>{{ item.department }} - {{ item.period_name }}</v-list-item-subtitle>
+            <v-list-item-subtitle>{{ item.period_name }}</v-list-item-subtitle>
           </v-list-item>
         </v-list>
       </div>
@@ -61,7 +61,6 @@
         <p>คุณต้องการอนุมัติการประเมินของ</p>
         <v-card class="mt-3 pa-3" variant="tonal">
           <div><strong>ชื่อ:</strong> {{ approveDialog.items[0]?.full_name }}</div>
-          <div><strong>แผนก:</strong> {{ approveDialog.items[0]?.department }}</div>
           <div><strong>รอบการประเมิน:</strong> {{ approveDialog.items[0]?.period_name }}</div>
           <div><strong>คะแนนรวม:</strong> {{ approveDialog.items[0]?.total_score }}</div>
         </v-card>
@@ -94,7 +93,6 @@ const approveDialog = ref({ show: false, isBulk: false, items: [] });
 
 const baseHeaders = [
   { title: 'ชื่อ-สกุล', key: 'full_name', sortable: true },
-  { title: 'แผนก', key: 'department', sortable: true },
   { title: 'รอบการประเมิน', key: 'period_name', sortable: true },
   { title: 'คะแนนรวม', key: 'total_score', sortable: true, align: 'center' },
   { title: 'สถานะ', key: 'status', sortable: true, align: 'center' },
@@ -141,7 +139,6 @@ const combinedData = computed(() => {
       evaluatee_id: assignment.evaluatee_id,
       period_id: assignment.period_id,
       full_name: assignment.evaluatee_name || '-',
-      department: assignment.department_name || '-',
       period_name: assignment.period_name || '-',
       total_score: totalScore.toFixed(2),
       status: status,
