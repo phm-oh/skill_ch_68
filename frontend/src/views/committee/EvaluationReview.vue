@@ -144,8 +144,8 @@ const fetchData = async () => {
     // ข้อมูล evaluatee และ period จาก flat structure
     evaluatee.value = {
       name: results[0].evaluatee_name,
-      department: results[0].department,
-      position: results[0].position
+      department: results[0].department_name || '-',
+      position: '-' // Position not available in database
     };
     period.value = {
       name: results[0].period_name

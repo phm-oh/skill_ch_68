@@ -26,14 +26,14 @@ exports.findByEvaluateePeriod = async (evaluateeId, periodId) => {
       'topics.weight as topic_weight',
       'users.id as evaluatee_id',
       'users.name_th as evaluatee_name',
-      'users.department',
-      'users.position',
+      'departments.name_th as department_name',
       'periods.id as period_id',
       'periods.name_th as period_name'
     )
     .leftJoin('indicators', 'evaluation_results.indicator_id', 'indicators.id')
     .leftJoin('evaluation_topics as topics', 'indicators.topic_id', 'topics.id')
     .leftJoin('users', 'evaluation_results.evaluatee_id', 'users.id')
+    .leftJoin('departments', 'users.department_id', 'departments.id')
     .leftJoin('evaluation_periods as periods', 'evaluation_results.period_id', 'periods.id')
     .where({ 'evaluation_results.evaluatee_id': evaluateeId, 'evaluation_results.period_id': periodId })
     .orderBy('topics.id', 'asc')
