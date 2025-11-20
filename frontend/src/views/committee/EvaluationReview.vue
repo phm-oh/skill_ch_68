@@ -24,7 +24,7 @@
                 <v-chip size="small" color="primary">{{ indicator.weight }}%</v-chip>
               </div>
               <v-alert variant="tonal" density="compact" class="mb-3">
-                <div class="text-caption"><strong>ประเมินตนเอง:</strong> {{ indicator.self_selected_value || '-' }} | คะแนน: {{ (indicator.self_score || 0).toFixed(2) }}</div>
+                <div class="text-caption"><strong>ประเมินตนเอง:</strong> {{ indicator.self_selected_value || '-' }} | คะแนน: {{ formatScore(indicator.self_score) }}</div>
                 <div v-if="indicator.self_comment" class="text-body-2"><strong>ความเห็น:</strong> {{ indicator.self_comment }}</div>
               </v-alert>
               <div class="text-caption text-grey mb-2">{{ getEvaluationTypeText(indicator.type) }}</div>
@@ -33,8 +33,8 @@
               </v-radio-group>
               <v-textarea v-model="indicator.evaluator_comment" label="ความเห็นกรรมการ" variant="outlined" density="compact" rows="2" class="mt-2"></v-textarea>
               <div class="text-end">
-                <span class="text-grey">คะแนนตนเอง: {{ (indicator.self_score || 0).toFixed(2) }}</span> |
-                <span class="text-primary font-weight-bold">คะแนนกรรมการ: {{ (indicator.evaluator_score || 0).toFixed(2) }}</span>
+                <span class="text-grey">คะแนนตนเอง: {{ formatScore(indicator.self_score) }}</span> |
+                <span class="text-primary font-weight-bold">คะแนนกรรมการ: {{ formatScore(indicator.evaluator_score) }}</span>
               </div>
             </div>
           </v-card-text>
@@ -106,6 +106,11 @@ const getOptions = (type) => {
   if (type === 'score_1_4') return [{ label: '1', value: 1 }, { label: '2', value: 2 }, { label: '3', value: 3 }, { label: '4', value: 4 }];
   if (type === 'file_url') return [{ label: 'ไม่มี', value: 0 }, { label: 'มี', value: 1 }];
   return [{ label: '0', value: 0 }, { label: '1', value: 1 }];
+};
+
+const formatScore = (score) => {
+  const num = parseFloat(score);
+  return isNaN(num) ? '0.00' : num.toFixed(2);
 };
 
 const updateScore = (indicator) => {
@@ -190,12 +195,12 @@ const fetchData = async () => {
         id: result.indicator_id,
         name_th: result.indicator_name,
         type: result.indicator_type,
-        weight: result.indicator_weight,
+        weight: parseFloat(result.indicator_weight) || 0,
         self_selected_value: selfSelectedValue,
-        self_score: result.self_score || 0,
+        self_score: parseFloat(result.self_score) || 0,
         self_comment: result.self_note,
         evaluator_selected_value: evaluatorSelectedValue,
-        evaluator_score: result.evaluator_score || 0,
+        evaluator_score: parseFloat(result.evaluator_score) || 0,
         evaluator_comment: result.evaluator_note || ''
       });
     });
