@@ -60,10 +60,29 @@
       <v-col cols="12" md="4">
         <div class="sticky-top">
           <score-display :total-score="totalScore" :max-score="100" :topic-scores="topicScores"></score-display>
+
+          <v-card class="mt-4">
+            <v-card-title class="text-h6">ลงนามการประเมิน</v-card-title>
+            <v-card-text>
+              <v-checkbox
+                v-model="signatureConfirmed"
+                color="primary"
+                hide-details
+              >
+                <template v-slot:label>
+                  <div class="text-body-2">
+                    ข้าพเจ้ายืนยันว่าได้ประเมินผลงานตามความเป็นจริง<br>
+                    และรับผิดชอบต่อการประเมินนี้
+                  </div>
+                </template>
+              </v-checkbox>
+            </v-card-text>
+          </v-card>
+
           <v-card class="mt-4">
             <v-card-text>
-              <v-btn block color="success" :loading="saving" @click="saveEvaluation" :disabled="!canSave">
-                <v-icon icon="mdi-content-save" start></v-icon>บันทึกการประเมิน
+              <v-btn block color="success" :loading="saving" @click="saveEvaluation" :disabled="!canSave || !signatureConfirmed">
+                <v-icon icon="mdi-content-save" start></v-icon>บันทึกและลงนาม
               </v-btn>
             </v-card-text>
           </v-card>
@@ -77,15 +96,18 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue';
 import { useRoute } from 'vue-router';
+import { useAuthStore } from '@/stores/auth';
 import { useNotificationStore } from '@/stores/notification';
 import evaluationService from '@/services/evaluationService';
 import uploadService from '@/services/uploadService';
+import signatureService from '@/services/signatureService';
 import ScoreDisplay from '@/components/common/ScoreDisplay.vue';
 import BaseCard from '@/components/base/BaseCard.vue';
 import LoadingOverlay from '@/components/base/LoadingOverlay.vue';
 import { calculateScore, calculateTopicScore } from '@/utils/helpers';
 
 const route = useRoute();
+const authStore = useAuthStore();
 const notificationStore = useNotificationStore();
 const evaluateeId = computed(() => route.params.evaluateeId);
 const periodId = computed(() => route.params.periodId);
@@ -94,6 +116,7 @@ const saving = ref(false);
 const evaluatee = ref(null);
 const period = ref(null);
 const topics = ref([]);
+const signatureConfirmed = ref(false);
 const evidences = ref([]);
 
 // Backend base URL for file access
@@ -235,6 +258,12 @@ const fetchData = async () => {
 };
 
 const saveEvaluation = async () => {
+  // Validate signature confirmation
+  if (!signatureConfirmed.value) {
+    notificationStore.error('กรุณายืนยันการลงนามก่อนบันทึก');
+    return;
+  }
+
   saving.value = true;
   try {
     const items = [];
@@ -257,7 +286,25 @@ const saveEvaluation = async () => {
 
     console.log('[EvaluationReview] Saving evaluation:', data);
     await evaluationService.evaluateBulk(data);
-    notificationStore.success('บันทึกและอนุมัติการประเมินสำเร็จ');
+
+    // Save signature
+    const timestamp = new Date().toLocaleString('th-TH', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+    const signatureText = `ลงนามโดย: ${authStore.user.name_th}\nตำแหน่ง: กรรมการประเมิน\nวันที่: ${timestamp}`;
+
+    await signatureService.create({
+      evaluatee_id: parseInt(evaluateeId.value),
+      period_id: parseInt(periodId.value),
+      signature_data: signatureText
+    });
+
+    console.log('[EvaluationReview] Signature saved');
+    notificationStore.success('บันทึก ลงนาม และอนุมัติการประเมินสำเร็จ');
   } catch (error) {
     console.error('[EvaluationReview] Save error:', error);
     notificationStore.error('เกิดข้อผิดพลาด: ' + (error.response?.data?.message || error.message));

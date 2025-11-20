@@ -49,12 +49,9 @@ exports.getByEvaluator = async (req, res, next) => {
 exports.create = async (req, res, next) => {
   try {
     const userId = req.user.id;
-    const { result_id, signature_data } = req.body;
+    const { result_id, evaluatee_id, period_id, signature_data } = req.body;
 
-    // ตรวจ input
-    if (!result_id) {
-      return res.status(400).json({ success: false, message: 'result_id required' });
-    }
+    // ตรวจ input: ต้องมี signature_data และ (result_id หรือ evaluatee_id+period_id)
     if (!signature_data) {
       return res.status(400).json({ success: false, message: 'signature_data required' });
     }
@@ -64,9 +61,28 @@ exports.create = async (req, res, next) => {
       return res.status(403).json({ success: false, message: 'Only evaluator or admin can sign' });
     }
 
+    let finalResultId = result_id;
+
+    // ถ้าส่ง evaluatee_id + period_id มา ให้หา result_id แรกของการประเมินนั้น
+    if (!finalResultId && evaluatee_id && period_id) {
+      const db = require('../db/knex');
+      const firstResult = await db('evaluation_results')
+        .where({ evaluatee_id, period_id })
+        .first();
+
+      if (!firstResult) {
+        return res.status(404).json({ success: false, message: 'No evaluation results found' });
+      }
+      finalResultId = firstResult.id;
+    }
+
+    if (!finalResultId) {
+      return res.status(400).json({ success: false, message: 'result_id or (evaluatee_id + period_id) required' });
+    }
+
     // สร้าง
     const data = await signaturesRepo.create({
-      result_id,
+      result_id: finalResultId,
       evaluator_id: userId,
       signature_data
     });
