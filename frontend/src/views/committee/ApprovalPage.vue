@@ -3,26 +3,14 @@
     <v-btn variant="text" color="primary" to="/evaluator" class="mb-2">
       <v-icon icon="mdi-arrow-left" start></v-icon>กลับหน้าหลัก
     </v-btn>
-    <h1 class="text-h4 mb-4">อนุมัติการประเมิน</h1>
-    <v-card class="mb-4">
-      <v-tabs v-model="selectedTab" bg-color="primary">
-        <v-tab value="pending">รอการอนุมัติ
-          <v-badge v-if="counts.pending > 0" :content="counts.pending" color="warning" inline class="ml-2"></v-badge>
-        </v-tab>
-        <v-tab value="approved">อนุมัติแล้ว
-          <v-badge v-if="counts.approved > 0" :content="counts.approved" color="success" inline class="ml-2"></v-badge>
-        </v-tab>
-      </v-tabs>
-    </v-card>
-    <v-card v-if="selectedTab === 'pending' && selected.length > 0" class="mb-4 pa-4">
-      <div class="d-flex align-center justify-space-between">
-        <div class="text-body-1">
-          <v-icon icon="mdi-checkbox-marked-circle" color="primary"></v-icon>
-          เลือกแล้ว {{ selected.length }} รายการ
+    <h1 class="text-h4 mb-4">ประวัติการประเมิน</h1>
+    <v-card class="mb-4 pa-4">
+      <div class="d-flex align-center">
+        <v-icon icon="mdi-check-circle" color="success" class="mr-2"></v-icon>
+        <div>
+          <div class="text-h6">การประเมินที่เสร็จสมบูรณ์</div>
+          <div class="text-caption text-grey">รายการที่ประเมินและลงนามแล้ว</div>
         </div>
-        <v-btn color="success" variant="elevated" @click="openBulkApproveDialog">
-          <v-icon icon="mdi-check-all" start></v-icon>อนุมัติที่เลือก
-        </v-btn>
       </div>
     </v-card>
     <BaseTable :headers="headers" :items="filteredItems" :loading="loading">
@@ -32,18 +20,17 @@
       <template #item.total_score="{ item }">
         <span class="font-weight-bold">{{ item.total_score || '-' }}</span>
       </template>
-      <template #item.status="{ item }">
-        <StatusChip :status="item.status" size="small" />
+      <template #item.signed_at="{ item }">
+        <div v-if="item.signed_at" class="text-caption">
+          <v-icon icon="mdi-pen" size="small" color="success" class="mr-1"></v-icon>
+          {{ formatDateTime(item.signed_at) }}
+        </div>
+        <span v-else class="text-grey">-</span>
       </template>
       <template #item.actions="{ item }">
-        <div class="d-flex ga-2">
-          <v-btn color="primary" size="small" variant="tonal" @click="goToReview(item)">
-            <v-icon icon="mdi-eye" start></v-icon>ดูรายละเอียด
-          </v-btn>
-          <v-btn v-if="selectedTab === 'pending'" color="success" size="small" variant="elevated" @click="openApproveDialog(item)">
-            <v-icon icon="mdi-check-circle" start></v-icon>อนุมัติ
-          </v-btn>
-        </div>
+        <v-btn color="primary" size="small" variant="tonal" @click="goToReview(item)">
+          <v-icon icon="mdi-eye" start></v-icon>ดูรายละเอียด
+        </v-btn>
       </template>
     </BaseTable>
     <BaseDialog v-model="approveDialog.show" :title="approveDialog.isBulk ? 'ยืนยันการอนุมัติหลายรายการ' : 'ยืนยันการอนุมัติ'" icon="mdi-check-circle" confirm-text="อนุมัติ" confirm-color="success" :loading="approving" @confirm="handleApprove" @cancel="closeApproveDialog">
@@ -79,31 +66,28 @@ import BaseDialog from '@/components/base/BaseDialog.vue';
 import StatusChip from '@/components/base/StatusChip.vue';
 import assignmentService from '@/services/assignmentService';
 import evaluationService from '@/services/evaluationService';
+import signatureService from '@/services/signatureService';
+import { formatDateTime } from '@/utils/helpers';
 
 const router = useRouter();
 const authStore = useAuthStore();
 const notificationStore = useNotificationStore();
 const loading = ref(false);
 const approving = ref(false);
-const selectedTab = ref('pending');
+const selectedTab = ref('approved'); // Changed to approved since auto-approve is enabled
 const assignments = ref([]);
 const evaluations = ref([]);
+const signatures = ref([]);
 const selected = ref([]);
 const approveDialog = ref({ show: false, isBulk: false, items: [] });
 
-const baseHeaders = [
+const headers = [
   { title: 'ชื่อ-สกุล', key: 'full_name', sortable: true },
   { title: 'รอบการประเมิน', key: 'period_name', sortable: true },
   { title: 'คะแนนรวม', key: 'total_score', sortable: true, align: 'center' },
-  { title: 'สถานะ', key: 'status', sortable: true, align: 'center' },
+  { title: 'ลงนามเมื่อ', key: 'signed_at', sortable: true, align: 'center' },
   { title: 'จัดการ', key: 'actions', sortable: false, align: 'center' }
 ];
-
-const headers = computed(() =>
-  selectedTab.value === 'pending'
-    ? [{ title: '', key: 'select', sortable: false, width: 50 }, ...baseHeaders]
-    : baseHeaders
-);
 
 // Combine assignments with their evaluation status
 const combinedData = computed(() => {
@@ -119,6 +103,7 @@ const combinedData = computed(() => {
     // Determine evaluation status
     let status = 'pending';
     let totalScore = 0;
+    let signedAt = null;
 
     if (results.length > 0) {
       const allEvaluated = results.every(r => r.evaluator_score !== null && r.evaluator_score !== undefined);
@@ -134,6 +119,14 @@ const combinedData = computed(() => {
       totalScore = results.reduce((sum, r) => sum + (parseFloat(r.evaluator_score) || 0), 0);
     }
 
+    // Find signature for this evaluatee and period
+    const signature = signatures.value.find(
+      s => s.evaluatee_id === assignment.evaluatee_id && s.period_id === assignment.period_id
+    );
+    if (signature) {
+      signedAt = signature.signed_at;
+    }
+
     return {
       id: `${assignment.evaluatee_id}-${assignment.period_id}`,
       evaluatee_id: assignment.evaluatee_id,
@@ -142,6 +135,7 @@ const combinedData = computed(() => {
       period_name: assignment.period_name || '-',
       total_score: totalScore.toFixed(2),
       status: status,
+      signed_at: signedAt,
       results: results
     };
   });
@@ -233,6 +227,29 @@ const fetchData = async () => {
     evaluations.value = evaluationResults.flat();
 
     console.log('[ApprovalPage] Evaluations:', evaluations.value);
+
+    // Fetch signatures for each assignment
+    const signaturePromises = assignments.value.map(assignment =>
+      signatureService.getByEvaluatee(assignment.evaluatee_id, assignment.period_id)
+        .then(res => {
+          const sigs = res.data.items || res.data.data || [];
+          // Add evaluatee_id and period_id to each signature for matching
+          return sigs.map(sig => ({
+            ...sig,
+            evaluatee_id: assignment.evaluatee_id,
+            period_id: assignment.period_id
+          }));
+        })
+        .catch(err => {
+          console.error(`[ApprovalPage] Error fetching signatures for ${assignment.evaluatee_id}:`, err);
+          return [];
+        })
+    );
+
+    const signatureResults = await Promise.all(signaturePromises);
+    signatures.value = signatureResults.flat();
+
+    console.log('[ApprovalPage] Signatures:', signatures.value);
   } catch (error) {
     console.error('[ApprovalPage] Fetch error:', error);
     notificationStore.error('ไม่สามารถโหลดข้อมูลได้: ' + (error.response?.data?.message || error.message));
@@ -247,5 +264,11 @@ onMounted(fetchData);
 <style scoped>
 .ml-2 {
   margin-left: 8px;
+}
+
+@media print {
+  .v-btn, .v-select, [class*="actions"] {
+    display: none !important;
+  }
 }
 </style>

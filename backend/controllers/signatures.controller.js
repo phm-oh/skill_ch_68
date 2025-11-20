@@ -45,6 +45,29 @@ exports.getByEvaluator = async (req, res, next) => {
   }
 };
 
+// GET /api/signatures/evaluatee/:evaluateeId/:periodId
+exports.getByEvaluateeAndPeriod = async (req, res, next) => {
+  try {
+    const { evaluateeId, periodId } = req.params;
+    const db = require('../db/knex');
+
+    // Find signature by joining with evaluation_results
+    const items = await db('signatures')
+      .select('signatures.*', 'users.name_th as evaluator_name')
+      .leftJoin('users', 'signatures.evaluator_id', 'users.id')
+      .leftJoin('evaluation_results', 'signatures.result_id', 'evaluation_results.id')
+      .where({
+        'evaluation_results.evaluatee_id': evaluateeId,
+        'evaluation_results.period_id': periodId
+      })
+      .orderBy('signatures.signed_at', 'desc');
+
+    res.json({ success: true, items, total: items.length });
+  } catch (e) {
+    next(e);
+  }
+};
+
 // POST /api/signatures
 exports.create = async (req, res, next) => {
   try {

@@ -74,6 +74,13 @@
               </div>
               <span v-else class="text-grey">-</span>
             </template>
+            <template #item.signed_at="{ item }">
+              <div v-if="item.signed_at" class="text-caption">
+                <v-icon icon="mdi-pen" size="small" color="success" class="mr-1"></v-icon>
+                {{ formatDateTime(item.signed_at) }}
+              </div>
+              <span v-else class="text-grey">-</span>
+            </template>
           </base-table>
         </base-card>
       </v-col>
@@ -87,29 +94,41 @@ import { ref, computed, onMounted } from 'vue';
 import { useNotificationStore } from '@/stores/notification';
 import periodService from '@/services/periodService';
 import evaluationService from '@/services/evaluationService';
+import signatureService from '@/services/signatureService';
 import BaseCard from '@/components/base/BaseCard.vue';
 import BaseTable from '@/components/base/BaseTable.vue';
 import StatusChip from '@/components/base/StatusChip.vue';
 import LoadingOverlay from '@/components/base/LoadingOverlay.vue';
+import { formatDateTime } from '@/utils/helpers';
 
 const notificationStore = useNotificationStore();
 const loading = ref(false);
 const periods = ref([]);
 const selectedPeriod = ref(null);
 const reportData = ref([]);
+const signatures = ref([]);
 
 const headers = [
   { title: 'ชื่อ-นามสกุล', key: 'full_name', sortable: true },
   { title: 'สถานะ', key: 'status', sortable: true },
-  { title: 'คะแนนรวม', key: 'total_score', sortable: true, align: 'center' }
+  { title: 'คะแนนรวม', key: 'total_score', sortable: true, align: 'center' },
+  { title: 'ลงนามเมื่อ', key: 'signed_at', sortable: true, align: 'center' }
 ];
 
-const reportItems = computed(() => reportData.value.map(item => ({
-  evaluatee_id: item.evaluatee_id,
-  full_name: item.evaluatee_name || item.name_th || '-',
-  status: item.status || 'draft',
-  total_score: item.total_score
-})));
+const reportItems = computed(() => reportData.value.map(item => {
+  // Find signature for this evaluatee
+  const signature = signatures.value.find(s =>
+    s.evaluatee_id === item.evaluatee_id && s.period_id === selectedPeriod.value
+  );
+
+  return {
+    evaluatee_id: item.evaluatee_id,
+    full_name: item.evaluatee_name || item.name_th || '-',
+    status: item.status || 'draft',
+    total_score: item.total_score,
+    signed_at: signature?.signed_at || null
+  };
+}));
 
 const statistics = computed(() => {
   const total = reportItems.value.length;
@@ -210,6 +229,28 @@ const fetchReportData = async () => {
 
     console.log('[ReportsView] Summaries:', summaries);
     reportData.value = summaries;
+
+    // Fetch signatures for each evaluatee
+    const signaturePromises = evaluateeIds.map(evaluateeId =>
+      signatureService.getByEvaluatee(evaluateeId, selectedPeriod.value)
+        .then(res => {
+          const sigs = res.data.items || res.data.data || [];
+          return sigs.map(sig => ({
+            ...sig,
+            evaluatee_id: evaluateeId,
+            period_id: selectedPeriod.value
+          }));
+        })
+        .catch(err => {
+          console.error(`[ReportsView] Error fetching signatures for ${evaluateeId}:`, err);
+          return [];
+        })
+    );
+
+    const signatureResults = await Promise.all(signaturePromises);
+    signatures.value = signatureResults.flat();
+
+    console.log('[ReportsView] Signatures:', signatures.value);
   } catch (error) {
     console.error('[ReportsView] Fetch error:', error);
     notificationStore.error('ไม่สามารถโหลดข้อมูลรายงานได้');

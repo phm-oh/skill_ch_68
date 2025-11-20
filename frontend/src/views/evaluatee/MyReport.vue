@@ -82,6 +82,27 @@
           </v-card>
         </v-col>
       </v-row>
+      <v-row class="mt-4">
+        <v-col cols="12">
+          <v-card>
+            <v-card-title class="bg-success-lighten-5">
+              <v-icon icon="mdi-pen" start></v-icon>ลายเซ็นกรรมการผู้ประเมิน
+            </v-card-title>
+            <v-card-text>
+              <div v-if="signature" class="pa-4 bg-grey-lighten-5 rounded">
+                <pre class="signature-text">{{ signature.signature_data }}</pre>
+                <div class="text-caption text-grey mt-2">
+                  ลงนามเมื่อ: {{ formatDateTime(signature.signed_at) }}
+                </div>
+              </div>
+              <v-alert v-else type="info" variant="tonal">
+                <v-icon icon="mdi-information" start></v-icon>
+                ยังไม่มีลายเซ็นกรรมการ (รอการอนุมัติ)
+              </v-alert>
+            </v-card-text>
+          </v-card>
+        </v-col>
+      </v-row>
     </template>
     <v-alert v-else-if="!selectedPeriod && !loading" type="info" variant="tonal" class="mt-4">
       กรุณาเลือกรอบการประเมินเพื่อดูรายงาน
@@ -96,9 +117,11 @@ import { useAuthStore } from '@/stores/auth';
 import { useNotificationStore } from '@/stores/notification';
 import periodService from '@/services/periodService';
 import evaluationService from '@/services/evaluationService';
+import signatureService from '@/services/signatureService';
 import ScoreDisplay from '@/components/common/ScoreDisplay.vue';
 import BaseTable from '@/components/base/BaseTable.vue';
 import LoadingOverlay from '@/components/base/LoadingOverlay.vue';
+import { formatDateTime } from '@/utils/helpers';
 
 const authStore = useAuthStore();
 const notificationStore = useNotificationStore();
@@ -108,6 +131,7 @@ const selectedPeriod = ref(null);
 const tableData = ref([]);
 const summary = ref({ totalScore: 0, maxScore: 100, topicScores: [], selfTotal: 0, evaluatorTotal: 0 });
 const comments = ref({ self: [], evaluator: [] });
+const signature = ref(null);
 
 const commentTypes = [
   { key: 'self', title: 'ความเห็นตนเอง', icon: 'mdi-account-edit', color: 'blue', emptyText: 'ไม่มีความเห็น' },
@@ -174,6 +198,17 @@ const fetchReportData = async () => {
       indicator_name: r.indicator_name,
       comment: r.evaluator_note
     }));
+
+    // Fetch signature
+    try {
+      const signatureRes = await signatureService.getByEvaluatee(authStore.user.id, selectedPeriod.value);
+      const signatures = signatureRes.data.items || signatureRes.data.data || [];
+      signature.value = signatures.length > 0 ? signatures[0] : null;
+      console.log('[MyReport] Signature:', signature.value);
+    } catch (error) {
+      console.log('[MyReport] No signature found or error:', error);
+      signature.value = null;
+    }
   } catch (error) {
     console.error('[MyReport] Fetch error:', error);
     notificationStore.error('ไม่สามารถโหลดข้อมูลรายงานได้: ' + (error.response?.data?.message || error.message));
@@ -198,5 +233,15 @@ onMounted(fetchPeriods);
 </script>
 
 <style scoped>
-@media print { .v-btn, .v-select { display: none !important; } }
+.signature-text {
+  font-family: monospace;
+  white-space: pre-wrap;
+  margin: 0;
+}
+
+@media print {
+  .v-btn, .v-select {
+    display: none !important;
+  }
+}
 </style>
