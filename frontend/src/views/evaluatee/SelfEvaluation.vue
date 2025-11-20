@@ -4,19 +4,45 @@
       <v-icon icon="mdi-arrow-left" start></v-icon>กลับหน้าหลัก
     </v-btn>
     <h1 class="text-h4 mb-4">ประเมินตนเอง</h1>
-    <v-alert v-if="!activePeriod" type="info" variant="tonal">
-      ไม่มีรอบการประเมินที่เปิดอยู่ในขณะนี้
+
+    <v-alert v-if="availablePeriods.length === 0 && !loading" type="info" variant="tonal">
+      ไม่มีรอบการประเมินที่ได้รับมอบหมาย
     </v-alert>
-    <template v-else>
+
+    <template v-else-if="availablePeriods.length > 0">
       <v-card class="mb-4">
-        <v-card-title>{{ activePeriod.name_th }}</v-card-title>
-        <v-card-subtitle>{{ formatDate(activePeriod.start_date) }} - {{ formatDate(activePeriod.end_date) }}</v-card-subtitle>
+        <v-card-text>
+          <v-select
+            v-model="selectedPeriodId"
+            :items="availablePeriods"
+            item-title="name_th"
+            item-value="id"
+            label="เลือกรอบการประเมิน"
+            variant="outlined"
+            density="comfortable"
+            @update:modelValue="onPeriodChange"
+          >
+            <template v-slot:item="{ props, item }">
+              <v-list-item v-bind="props">
+                <template v-slot:subtitle>
+                  {{ formatDate(item.raw.start_date) }} - {{ formatDate(item.raw.end_date) }}
+                </template>
+              </v-list-item>
+            </template>
+          </v-select>
+        </v-card-text>
       </v-card>
-      <v-row v-if="!loading">
+      <v-row v-if="!loading && selectedPeriodId">
         <v-col cols="12" md="8">
+          <v-alert v-if="topics.length === 0" type="warning" variant="tonal" class="mb-4">
+            ไม่มีหัวข้อการประเมินในรอบนี้
+          </v-alert>
           <v-card v-for="topic in topics" :key="topic.id" class="mb-4">
             <v-card-title class="bg-primary">{{ topic.title_th }} ({{ topic.weight }}%)</v-card-title>
             <v-card-text>
+              <div v-if="!topic.indicators || topic.indicators.length === 0" class="pa-4 text-center text-grey">
+                ไม่มีตัวชี้วัดในหัวข้อนี้
+              </div>
               <div v-for="indicator in topic.indicators" :key="indicator.id" class="mb-4 pa-3 border rounded">
                 <div class="d-flex justify-space-between mb-2">
                   <strong>{{ indicator.name_th }}</strong>
@@ -63,7 +89,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue';
 import { useNotificationStore } from '@/stores/notification';
-import periodService from '@/services/periodService';
+import assignmentService from '@/services/assignmentService';
 import topicService from '@/services/topicService';
 import evaluationService from '@/services/evaluationService';
 import ScoreDisplay from '@/components/common/ScoreDisplay.vue';
@@ -72,7 +98,8 @@ import BaseDialog from '@/components/base/BaseDialog.vue';
 import { formatDate, calculateScore, calculateTopicScore, calculateTotalScore } from '@/utils/helpers';
 
 const notificationStore = useNotificationStore();
-const activePeriod = ref(null);
+const availablePeriods = ref([]);
+const selectedPeriodId = ref(null);
 const topics = ref([]);
 const loading = ref(false);
 const saving = ref(false);
@@ -111,34 +138,32 @@ const totalScore = computed(() => calculateTotalScore(topics.value));
 const fetchData = async () => {
   loading.value = true;
   try {
-    const periodRes = await periodService.getActive();
-    // Backend ส่ง { success: true, items: [period] }
-    const periods = periodRes.data.items || periodRes.data.data || [];
-    console.log('[SelfEvaluation] Active periods response:', periods);
+    // ดึง assignments ของ evaluatee (รวม period info)
+    const assignmentsRes = await assignmentService.getMine();
+    const assignments = assignmentsRes.data.items || assignmentsRes.data.data || [];
 
-    activePeriod.value = Array.isArray(periods) && periods.length > 0 ? periods[0] : null;
-
-    if (!activePeriod.value) {
-      console.log('[SelfEvaluation] No active period found');
-      loading.value = false;
-      return;
+    // แปลง assignments เป็น periods (distinct by period_id)
+    const periodMap = new Map();
+    for (const assignment of assignments) {
+      if (!periodMap.has(assignment.period_id)) {
+        periodMap.set(assignment.period_id, {
+          id: assignment.period_id,
+          name_th: assignment.period_name,
+          name: assignment.period_name,
+          start_date: assignment.start_date,
+          end_date: assignment.end_date,
+          is_active: assignment.is_active
+        });
+      }
     }
 
-    console.log('[SelfEvaluation] Using period:', activePeriod.value);
+    availablePeriods.value = Array.from(periodMap.values());
 
-    const topicsRes = await topicService.getAll();
-    // Backend ส่ง { success: true, items: [...] }
-    const allTopics = topicsRes.data.items || topicsRes.data.data || [];
-
-    for (const topic of allTopics) {
-      const indicatorsRes = await topicService.getIndicatorsByTopic(topic.id);
-      const indicators = indicatorsRes.data.items || indicatorsRes.data.data || [];
-      topic.indicators = indicators.map(ind => ({
-        ...ind, selected_value: 0, comment: '', calculated_score: 0
-      }));
+    // เลือกรอบแรกอัตโนมัติถ้ามี
+    if (availablePeriods.value.length > 0) {
+      selectedPeriodId.value = availablePeriods.value[0].id;
+      await loadPeriodData(selectedPeriodId.value);
     }
-    topics.value = allTopics;
-    await loadSavedResults();
   } catch (error) {
     console.error('[SelfEvaluation] Error loading data:', error);
     notificationStore.error('ไม่สามารถโหลดข้อมูลได้: ' + (error.response?.data?.message || error.message));
@@ -147,10 +172,42 @@ const fetchData = async () => {
   }
 };
 
-const loadSavedResults = async () => {
+const onPeriodChange = async (periodId) => {
+  if (!periodId) return;
+  loading.value = true;
   try {
-    const res = await evaluationService.getMyResults(activePeriod.value.id);
-    const savedResults = res.data.data || [];
+    await loadPeriodData(periodId);
+  } catch (error) {
+    console.error('[SelfEvaluation] Error loading period data:', error);
+    notificationStore.error('ไม่สามารถโหลดข้อมูลได้');
+  } finally {
+    loading.value = false;
+  }
+};
+
+const loadPeriodData = async (periodId) => {
+  const topicsRes = await topicService.getAll();
+  const allTopics = topicsRes.data.items || topicsRes.data.data || [];
+
+  // Filter topics ตาม period_id
+  const periodTopics = allTopics.filter(t => t.period_id === periodId);
+
+  for (const topic of periodTopics) {
+    const indicatorsRes = await topicService.getIndicatorsByTopic(topic.id);
+    const indicators = indicatorsRes.data.items || indicatorsRes.data.data || [];
+    topic.indicators = indicators.map(ind => ({
+      ...ind, selected_value: 0, comment: '', calculated_score: 0
+    }));
+  }
+
+  topics.value = periodTopics;
+  await loadSavedResults(periodId);
+};
+
+const loadSavedResults = async (periodId) => {
+  try {
+    const res = await evaluationService.getMyResults(periodId);
+    const savedResults = res.data.items || res.data.data || [];
     topics.value.forEach(topic => {
       topic.indicators.forEach(indicator => {
         const saved = savedResults.find(r => r.indicator_id === indicator.id);
@@ -172,10 +229,15 @@ const handleSubmit = async () => {
 };
 
 const saveResults = async (isSubmit) => {
+  if (!selectedPeriodId.value) {
+    notificationStore.error('กรุณาเลือกรอบการประเมิน');
+    return;
+  }
+
   saving.value = true;
   try {
     const data = {
-      period_id: activePeriod.value.id,
+      period_id: selectedPeriodId.value,
       is_submitted: isSubmit,
       results: []
     };
