@@ -15,8 +15,77 @@ exports.findById = async (id) => {
 // ดึงผลของบุคคลใน period
 exports.findByEvaluateePeriod = async (evaluateeId, periodId) => {
   return db(TABLE)
-    .where({ evaluatee_id: evaluateeId, period_id: periodId })
-    .orderBy('indicator_id', 'asc');
+    .select(
+      `${TABLE}.*`,
+      'indicators.id as ind_id',
+      'indicators.code as ind_code',
+      'indicators.name_th as ind_name_th',
+      'indicators.type as ind_type',
+      'indicators.weight as ind_weight',
+      'indicators.topic_id as ind_topic_id',
+      'topics.id as topic_id',
+      'topics.title_th as topic_title_th',
+      'topics.weight as topic_weight',
+      'evaluatee.id as evaluatee_id',
+      'evaluatee.username as evaluatee_username',
+      'evaluatee.name_th as evaluatee_name_th',
+      'evaluatee.department_id as evaluatee_dept_id',
+      'periods.id as period_id',
+      'periods.name_th as period_name_th'
+    )
+    .leftJoin('indicators', `${TABLE}.indicator_id`, 'indicators.id')
+    .leftJoin('evaluation_topics as topics', 'indicators.topic_id', 'topics.id')
+    .leftJoin('users as evaluatee', `${TABLE}.evaluatee_id`, 'evaluatee.id')
+    .leftJoin('evaluation_periods as periods', `${TABLE}.period_id`, 'periods.id')
+    .where({ [`${TABLE}.evaluatee_id`]: evaluateeId, [`${TABLE}.period_id`]: periodId })
+    .orderBy('indicators.topic_id', 'asc')
+    .orderBy(`${TABLE}.indicator_id`, 'asc')
+    .then(rows => {
+      // Transform flat rows to nested structure
+      return rows.map(row => ({
+        id: row.id,
+        period_id: row.period_id,
+        evaluatee_id: row.evaluatee_id,
+        indicator_id: row.indicator_id,
+        self_score: row.self_score,
+        self_note: row.self_note,
+        self_submitted_at: row.self_submitted_at,
+        self_selected_value: row.self_selected_value,
+        self_comment: row.self_note,
+        evaluator_score: row.evaluator_score,
+        evaluator_id: row.evaluator_id,
+        evaluator_note: row.evaluator_note,
+        evaluator_selected_value: row.evaluator_selected_value,
+        evaluator_comment: row.evaluator_note,
+        evaluated_at: row.evaluated_at,
+        status: row.status,
+        created_at: row.created_at,
+        updated_at: row.updated_at,
+        indicator: {
+          id: row.ind_id,
+          code: row.ind_code,
+          name_th: row.ind_name_th,
+          type: row.ind_type,
+          weight: row.ind_weight,
+          topic_id: row.ind_topic_id,
+          topic: {
+            id: row.topic_id,
+            title_th: row.topic_title_th,
+            weight: row.topic_weight
+          }
+        },
+        evaluatee: {
+          id: row.evaluatee_id,
+          username: row.evaluatee_username,
+          name: row.evaluatee_name_th,
+          department: row.evaluatee_dept_id
+        },
+        period: {
+          id: row.period_id,
+          name: row.period_name_th
+        }
+      }));
+    });
 };
 
 // ตรวจสอบว่ามีแล้วหรือไม่
@@ -112,11 +181,13 @@ exports.saveBulk = async (evaluateeId, periodId, items, scoreType, isSubmitted =
     // Handle different score types with their associated fields
     if (scoreType === 'self_score') {
       updateData = {
+        self_selected_value: item.self_selected_value || null,
         self_score: item.self_score,
         self_note: item.self_comment || null
       };
       insertData = {
         ...insertData,
+        self_selected_value: item.self_selected_value || null,
         self_score: item.self_score,
         self_note: item.self_comment || null
       };
@@ -130,11 +201,13 @@ exports.saveBulk = async (evaluateeId, periodId, items, scoreType, isSubmitted =
       }
     } else if (scoreType === 'evaluator_score') {
       updateData = {
+        evaluator_selected_value: item.evaluator_selected_value || null,
         evaluator_score: item.evaluator_score,
         evaluator_note: item.evaluator_note || null
       };
       insertData = {
         ...insertData,
+        evaluator_selected_value: item.evaluator_selected_value || null,
         evaluator_score: item.evaluator_score,
         evaluator_note: item.evaluator_note || null
       };

@@ -24,7 +24,7 @@
                 <v-chip size="small" color="primary">{{ indicator.weight }}%</v-chip>
               </div>
               <v-alert variant="tonal" density="compact" class="mb-3">
-                <div class="text-caption"><strong>ประเมินตนเอง:</strong> {{ indicator.self_selected_value || '-' }} | คะแนน: {{ (indicator.self_score || 0).toFixed(2) }}</div>
+                <div class="text-caption"><strong>ประเมินตนเอง:</strong> {{ indicator.self_selected_value || '-' }} | คะแนน: {{ Number(indicator.self_score || 0).toFixed(2) }}</div>
                 <div v-if="indicator.self_comment" class="text-body-2"><strong>ความเห็น:</strong> {{ indicator.self_comment }}</div>
               </v-alert>
               <div class="text-caption text-grey mb-2">{{ getEvaluationTypeText(indicator.type) }}</div>
@@ -33,8 +33,8 @@
               </v-radio-group>
               <v-textarea v-model="indicator.evaluator_comment" label="ความเห็นกรรมการ" variant="outlined" density="compact" rows="2" class="mt-2"></v-textarea>
               <div class="text-end">
-                <span class="text-grey">คะแนนตนเอง: {{ (indicator.self_score || 0).toFixed(2) }}</span> |
-                <span class="text-primary font-weight-bold">คะแนนกรรมการ: {{ (indicator.evaluator_score || 0).toFixed(2) }}</span>
+                <span class="text-grey">คะแนนตนเอง: {{ Number(indicator.self_score || 0).toFixed(2) }}</span> |
+                <span class="text-primary font-weight-bold">คะแนนกรรมการ: {{ Number(indicator.evaluator_score || 0).toFixed(2) }}</span>
               </div>
             </div>
           </v-card-text>
@@ -178,13 +178,13 @@ const fetchData = async () => {
 const saveEvaluation = async () => {
   saving.value = true;
   try {
-    const data = { period_id: periodId.value, evaluatee_id: evaluateeId.value, results: [] };
+    const data = { period_id: periodId.value, evaluatee_id: evaluateeId.value, items: [] };
     topics.value.forEach(topic => {
       topic.indicators.forEach(indicator => {
-        data.results.push({
+        data.items.push({
           indicator_id: indicator.id,
           evaluator_selected_value: indicator.evaluator_selected_value,
-          evaluator_comment: indicator.evaluator_comment,
+          evaluator_note: indicator.evaluator_comment,
           evaluator_score: calculateScore(indicator.evaluator_selected_value, indicator.weight)
         });
       });

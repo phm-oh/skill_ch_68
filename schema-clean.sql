@@ -186,11 +186,13 @@ CREATE TABLE evaluation_results (
   indicator_id BIGINT UNSIGNED NOT NULL,
 
   -- คะแนนประเมินตนเอง
+  self_selected_value INT NULL,
   self_score DECIMAL(5,2) NULL,
   self_note TEXT NULL,
   self_submitted_at TIMESTAMP NULL,
 
   -- คะแนนจากกรรมการ
+  evaluator_selected_value INT NULL,
   evaluator_score DECIMAL(5,2) NULL,
   evaluator_id BIGINT UNSIGNED NULL,
   evaluator_note TEXT NULL,
