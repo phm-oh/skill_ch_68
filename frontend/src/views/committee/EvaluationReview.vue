@@ -127,6 +127,8 @@ const canSave = computed(() => topics.value.every(topic => topic.indicators?.eve
 const fetchData = async () => {
   loading.value = true;
   try {
+    console.log('[EvaluationReview] Starting fetch for evaluateeId:', evaluateeId.value, 'periodId:', periodId.value);
+
     const [evalRes, evidenceRes] = await Promise.all([
       evaluationService.getByEvaluatee(evaluateeId.value, periodId.value),
       uploadService.getForEvaluator(evaluateeId.value)
@@ -135,11 +137,15 @@ const fetchData = async () => {
     // Backend ส่ง { success: true, items: [...] } - ข้อมูล flat structure
     const results = evalRes.data.items || evalRes.data.data || [];
     console.log('[EvaluationReview] Fetched results:', results);
+    console.log('[EvaluationReview] Results count:', results.length);
 
     if (results.length === 0) {
+      console.error('[EvaluationReview] No results found!');
       notificationStore.error('ไม่พบข้อมูลการประเมิน');
       return;
     }
+
+    console.log('[EvaluationReview] First result:', results[0]);
 
     // ข้อมูล evaluatee และ period จาก flat structure
     evaluatee.value = {
@@ -151,11 +157,21 @@ const fetchData = async () => {
       name: results[0].period_name
     };
 
+    console.log('[EvaluationReview] Evaluatee:', evaluatee.value);
+    console.log('[EvaluationReview] Period:', period.value);
+
     const topicMap = new Map();
     results.forEach(result => {
       const topicId = result.topic_id;
       const topicName = result.topic_title;
       const topicWeight = result.topic_weight;
+
+      console.log('[EvaluationReview] Processing result:', {
+        topicId,
+        topicName,
+        indicatorId: result.indicator_id,
+        indicatorName: result.indicator_name
+      });
 
       if (!topicMap.has(topicId)) {
         topicMap.set(topicId, { id: topicId, title_th: topicName, weight: topicWeight, indicators: [] });
@@ -185,11 +201,17 @@ const fetchData = async () => {
     });
 
     topics.value = Array.from(topicMap.values());
+    console.log('[EvaluationReview] Topics:', topics.value);
+    console.log('[EvaluationReview] Topics count:', topics.value.length);
+
     evidences.value = evidenceRes.data.items || evidenceRes.data.data || [];
+    console.log('[EvaluationReview] Evidences:', evidences.value);
   } catch (error) {
+    console.error('[EvaluationReview] Fetch error:', error);
     notificationStore.error('ไม่สามารถโหลดข้อมูลได้: ' + (error.response?.data?.message || error.message));
   } finally {
     loading.value = false;
+    console.log('[EvaluationReview] Loading finished, loading:', loading.value);
   }
 };
 
