@@ -84,19 +84,31 @@ const headers = [
 // รวมข้อมูล assignments และ evaluations
 const combinedData = computed(() => {
   return assignments.value.map(assignment => {
-    // หา evaluation ที่ตรงกับ assignment นี้
-    const evaluation = evaluations.value.find(
+    // Get all evaluation results for this assignment
+    const results = evaluations.value.filter(
       e => e.evaluatee_id === assignment.evaluatee_id && e.period_id === assignment.period_id
     );
 
-    // Map status to evaluation_status
+    // Determine submission and evaluation status
+    let submissionStatus = 'not_submitted';
     let evaluationStatus = 'pending';
-    if (evaluation?.status === 'approved') {
-      evaluationStatus = 'approved';
-    } else if (evaluation?.status === 'evaluated') {
-      evaluationStatus = 'evaluated';
-    } else if (evaluation?.status === 'submitted') {
-      evaluationStatus = 'pending';
+
+    if (results.length > 0) {
+      const anySubmitted = results.some(r => r.self_score !== null && r.self_score !== undefined);
+      const allEvaluated = results.every(r => r.evaluator_score !== null && r.evaluator_score !== undefined);
+      const anyApproved = results.some(r => r.status === 'approved');
+
+      if (anySubmitted) {
+        submissionStatus = 'submitted';
+      }
+
+      if (anyApproved) {
+        evaluationStatus = 'approved';
+      } else if (allEvaluated) {
+        evaluationStatus = 'evaluated';
+      } else if (anySubmitted) {
+        evaluationStatus = 'pending'; // Submitted but not evaluated yet
+      }
     }
 
     return {
@@ -105,7 +117,7 @@ const combinedData = computed(() => {
       period_id: assignment.period_id,
       full_name: assignment.evaluatee_name || '-',
       period_name: assignment.period_name || '-',
-      submission_status: evaluation?.status === 'submitted' || evaluation?.status === 'evaluated' || evaluation?.status === 'approved' ? 'submitted' : 'not_submitted',
+      submission_status: submissionStatus,
       evaluation_status: evaluationStatus
     };
   });
@@ -136,15 +148,20 @@ const goToEvaluate = (item) => {
 const fetchData = async () => {
   loading.value = true;
   try {
-    const [assignmentsRes, evaluationsRes] = await Promise.all([
-      assignmentService.getMine(),
-      evaluationService.getAll()
-    ]);
-
-    // Backend ส่ง { success: true, items: [...] }
+    const assignmentsRes = await assignmentService.getMine();
     assignments.value = assignmentsRes.data.items || assignmentsRes.data.data || [];
-    evaluations.value = evaluationsRes.data.items || evaluationsRes.data.data || [];
+
+    // Fetch evaluations for each assignment
+    const evaluationPromises = assignments.value.map(assignment =>
+      evaluationService.getByEvaluatee(assignment.evaluatee_id, assignment.period_id)
+        .then(res => res.data.items || res.data.data || [])
+        .catch(() => [])
+    );
+
+    const evaluationResults = await Promise.all(evaluationPromises);
+    evaluations.value = evaluationResults.flat();
   } catch (error) {
+    console.error('[AssignmentsList] Error fetching data:', error);
     notificationStore.error('ไม่สามารถโหลดข้อมูลได้: ' + (error.response?.data?.message || error.message));
   } finally {
     loading.value = false;

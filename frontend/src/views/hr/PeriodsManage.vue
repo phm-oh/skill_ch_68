@@ -147,13 +147,27 @@ const handleSave = async () => {
 };
 
 const toggleActive = async (item) => {
+  // Validate dates before activating
+  if (!item.is_active && (!item.start_date || !item.end_date)) {
+    notificationStore.error('กรุณาระบุช่วงการประเมิน (วันที่เริ่มต้นและวันที่สิ้นสุด) ก่อนเปิดใช้งาน');
+    return;
+  }
+
   try {
-    const data = { ...item, is_active: item.is_active ? 0 : 1 };
+    const data = {
+      code: item.code,
+      name_th: item.name_th,
+      buddhist_year: item.buddhist_year,
+      start_date: item.start_date,
+      end_date: item.end_date,
+      is_active: item.is_active ? 0 : 1
+    };
     await periodService.update(item.id, data);
     notificationStore.success('เปลี่ยนสถานะสำเร็จ');
     fetchPeriods();
   } catch (error) {
-    notificationStore.error('ไม่สามารถเปลี่ยนสถานะได้');
+    console.error('[PeriodsManage] Toggle error:', error);
+    notificationStore.error('ไม่สามารถเปลี่ยนสถานะได้: ' + (error.response?.data?.message || error.message));
   }
 };
 

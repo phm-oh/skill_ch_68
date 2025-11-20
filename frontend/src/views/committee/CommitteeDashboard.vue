@@ -66,20 +66,34 @@ const quickActions = [
 ];
 
 const stats = computed(() => {
-  // Count from assignments instead of evaluations for accurate stats
+  // Count from assignments and aggregate evaluation status
   let pending = 0, evaluated = 0, approved = 0;
 
   assignments.value.forEach(assignment => {
-    const evaluation = evaluations.value.find(
+    // Get all evaluation results for this assignment
+    const results = evaluations.value.filter(
       e => e.evaluatee_id === assignment.evaluatee_id && e.period_id === assignment.period_id
     );
 
-    if (!evaluation || evaluation.status === 'draft' || evaluation.status === 'submitted') {
+    if (results.length === 0) {
+      // No evaluation data yet
       pending++;
-    } else if (evaluation.status === 'approved') {
+      return;
+    }
+
+    // Check if all results have evaluator scores
+    const allEvaluated = results.every(r => r.evaluator_score !== null && r.evaluator_score !== undefined);
+    const anyApproved = results.some(r => r.status === 'approved');
+    const anySubmitted = results.some(r => r.self_score !== null && r.self_score !== undefined);
+
+    if (anyApproved) {
       approved++;
-    } else if (evaluation.status === 'evaluated') {
+    } else if (allEvaluated) {
       evaluated++;
+    } else if (anySubmitted) {
+      pending++; // Submitted but not evaluated yet
+    } else {
+      pending++; // Not submitted yet
     }
   });
 
@@ -98,16 +112,20 @@ const statCards = computed(() => [
 const fetchData = async () => {
   loading.value = true;
   try {
-    const [assignmentsRes, evaluationsRes] = await Promise.all([
-      assignmentService.getMine(),
-      evaluationService.getAll()
-    ]);
-    // Backend ส่ง { success: true, items: [...] }
+    const assignmentsRes = await assignmentService.getMine();
     assignments.value = assignmentsRes.data.items || assignmentsRes.data.data || [];
-    const currentUserId = authStore.user?.id;
-    const allEvaluations = evaluationsRes.data.items || evaluationsRes.data.data || [];
-    evaluations.value = allEvaluations.filter(e => e.evaluator_id === currentUserId);
+
+    // Fetch evaluations for each assignment
+    const evaluationPromises = assignments.value.map(assignment =>
+      evaluationService.getByEvaluatee(assignment.evaluatee_id, assignment.period_id)
+        .then(res => res.data.items || res.data.data || [])
+        .catch(() => [])
+    );
+
+    const evaluationResults = await Promise.all(evaluationPromises);
+    evaluations.value = evaluationResults.flat();
   } catch (error) {
+    console.error('[CommitteeDashboard] Error fetching data:', error);
     notificationStore.error('ไม่สามารถโหลดข้อมูลได้');
   } finally {
     loading.value = false;

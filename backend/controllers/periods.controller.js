@@ -73,6 +73,15 @@ exports.update = async (req, res, next) => {
     }
 
     const { code, name_th, buddhist_year, start_date, end_date, is_active } = req.body;
+
+    // Validate dates when activating period
+    if (is_active && (!start_date || !end_date)) {
+      return res.status(400).json({
+        success: false,
+        message: 'กรุณาระบุช่วงการประเมิน (วันที่เริ่มต้นและวันที่สิ้นสุด) ก่อนเปิดใช้งาน'
+      });
+    }
+
     const data = await periodsRepo.update(req.params.id, {
       code,
       name_th,
