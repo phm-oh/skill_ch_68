@@ -74,11 +74,11 @@ const stats = computed(() => {
       e => e.evaluatee_id === assignment.evaluatee_id && e.period_id === assignment.period_id
     );
 
-    if (!evaluation || evaluation.evaluator_score === null) {
+    if (!evaluation || evaluation.status === 'draft' || evaluation.status === 'submitted') {
       pending++;
-    } else if (evaluation.approver_score !== null) {
+    } else if (evaluation.status === 'approved') {
       approved++;
-    } else if (evaluation.evaluator_score !== null) {
+    } else if (evaluation.status === 'evaluated') {
       evaluated++;
     }
   });

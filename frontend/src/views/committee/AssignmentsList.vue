@@ -89,14 +89,24 @@ const combinedData = computed(() => {
       e => e.evaluatee_id === assignment.evaluatee_id && e.period_id === assignment.period_id
     );
 
+    // Map status to evaluation_status
+    let evaluationStatus = 'pending';
+    if (evaluation?.status === 'approved') {
+      evaluationStatus = 'approved';
+    } else if (evaluation?.status === 'evaluated') {
+      evaluationStatus = 'evaluated';
+    } else if (evaluation?.status === 'submitted') {
+      evaluationStatus = 'pending';
+    }
+
     return {
       id: assignment.id,
       evaluatee_id: assignment.evaluatee_id,
       period_id: assignment.period_id,
       full_name: assignment.evaluatee_name || '-',
       period_name: assignment.period_name || '-',
-      submission_status: evaluation?.is_submitted ? 'submitted' : 'not_submitted',
-      evaluation_status: evaluation?.evaluation_status || 'pending'
+      submission_status: evaluation?.status === 'submitted' || evaluation?.status === 'evaluated' || evaluation?.status === 'approved' ? 'submitted' : 'not_submitted',
+      evaluation_status: evaluationStatus
     };
   });
 });

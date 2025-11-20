@@ -112,14 +112,29 @@ const openDialog = (item = null) => {
 
 const handleSave = async () => {
   const { valid } = await formRef.value.validate();
-  if (!valid) return;
+  if (!valid) {
+    notificationStore.error('กรุณากรอกข้อมูลให้ครบถ้วน');
+    return;
+  }
+
+  // Validate dates
+  if (!form.value.start_date || !form.value.end_date) {
+    notificationStore.error('กรุณาระบุช่วงการประเมิน (วันที่เริ่มต้นและวันที่สิ้นสุด)');
+    return;
+  }
+
   saving.value = true;
   try {
+    const data = {
+      ...form.value,
+      is_active: form.value.is_active ? 1 : 0
+    };
+
     if (isEdit.value) {
-      await periodService.update(form.value.id, form.value);
+      await periodService.update(form.value.id, data);
       notificationStore.success('แก้ไขรอบการประเมินสำเร็จ');
     } else {
-      await periodService.create(form.value);
+      await periodService.create(data);
       notificationStore.success('เพิ่มรอบการประเมินสำเร็จ');
     }
     dialog.value = false;
