@@ -186,12 +186,11 @@ const onPeriodChange = async (periodId) => {
 };
 
 const loadPeriodData = async (periodId) => {
-  const topicsRes = await topicService.getAll();
-  const allTopics = topicsRes.data.items || topicsRes.data.data || [];
+  // ดึง topics ตาม period_id จาก backend (ผ่าน period_topics table)
+  const topicsRes = await topicService.getAll(periodId);
+  const periodTopics = topicsRes.data.items || topicsRes.data.data || [];
 
-  // Filter topics ตาม period_id
-  const periodTopics = allTopics.filter(t => t.period_id === periodId);
-
+  // ดึง indicators สำหรับแต่ละ topic
   for (const topic of periodTopics) {
     const indicatorsRes = await topicService.getIndicatorsByTopic(topic.id);
     const indicators = indicatorsRes.data.items || indicatorsRes.data.data || [];

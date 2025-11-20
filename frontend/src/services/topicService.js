@@ -2,7 +2,10 @@ import api from './api';
 
 export default {
   // Topics
-  getAll: () => api.get('/topics'),
+  getAll: (periodId = null) => {
+    const params = periodId ? { period_id: periodId } : {};
+    return api.get('/topics', { params });
+  },
   getActive: () => api.get('/topics/active'),
   getById: (id) => api.get(`/topics/${id}`),
   create: (data) => api.post('/topics', data),

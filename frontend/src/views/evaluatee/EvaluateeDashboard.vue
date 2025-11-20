@@ -131,9 +131,9 @@ const fetchData = async () => {
         const results = evalRes.data.items || evalRes.data.data || [];
         evaluationData.value[period.id] = { status: determineStatus(results), results };
 
-        const topicsRes = await topicService.getAll();
-        const allTopics = topicsRes.data.items || topicsRes.data.data || [];
-        const periodTopics = allTopics.filter(t => t.period_id === period.id);
+        // ดึง topics ตาม period_id จาก backend (ผ่าน period_topics table)
+        const topicsRes = await topicService.getAll(period.id);
+        const periodTopics = topicsRes.data.items || topicsRes.data.data || [];
 
         let totalIndicators = 0;
         let completedIndicators = 0;

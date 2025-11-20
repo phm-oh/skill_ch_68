@@ -3,9 +3,18 @@
 const db = require('../db/knex');
 const TABLE = 'evaluation_topics';
 
-// ดึงทั้งหมด
-exports.findAll = async () => {
-  return db(TABLE).select('*').orderBy('id', 'asc');
+// ดึงทั้งหมด (รองรับ filter ตาม period_id)
+exports.findAll = async (periodId = null) => {
+  let query = db(TABLE).select(TABLE + '.*');
+
+  // ถ้าส่ง periodId มา ให้ JOIN กับ period_topics
+  if (periodId) {
+    query = query
+      .join('period_topics', TABLE + '.id', 'period_topics.topic_id')
+      .where('period_topics.period_id', periodId);
+  }
+
+  return query.orderBy(TABLE + '.id', 'asc');
 };
 
 // ดึงรายการเดียว

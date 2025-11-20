@@ -2,10 +2,11 @@
 // Controller สำหรับจัดการหัวข้อการประเมิน
 const topicsRepo = require('../repositories/topics.repository');
 
-// GET /api/topics
+// GET /api/topics?period_id=1
 exports.list = async (req, res, next) => {
   try {
-    const items = await topicsRepo.findAll();
+    const periodId = req.query.period_id ? Number(req.query.period_id) : null;
+    const items = await topicsRepo.findAll(periodId);
     res.json({ success: true, items, total: items.length });
   } catch (e) {
     next(e);
