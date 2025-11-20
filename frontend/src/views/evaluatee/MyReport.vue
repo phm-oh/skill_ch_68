@@ -5,7 +5,7 @@
     </v-btn>
     <div class="d-flex justify-space-between align-center mb-4">
       <h1 class="text-h4">รายงานผลการประเมิน</h1>
-      <v-btn color="primary" @click="window.print()" :disabled="!selectedPeriod">
+      <v-btn color="primary" @click="exportPDF" :disabled="!selectedPeriod">
         <v-icon icon="mdi-file-pdf-box" start></v-icon>Export PDF
       </v-btn>
     </div>
@@ -185,6 +185,14 @@ const fetchReportData = async () => {
 const getDifferenceColor = (diff) => !diff ? 'grey' : diff > 0 ? 'success' : 'error';
 const getStatusColor = (s) => ({ evaluated: 'success', pending: 'warning', draft: 'grey' }[s] || 'grey');
 const getStatusText = (s) => ({ evaluated: 'ประเมินแล้ว', pending: 'รอการประเมิน', draft: 'ร่าง' }[s] || s);
+
+const exportPDF = () => {
+  if (!selectedPeriod.value) {
+    notificationStore.error('กรุณาเลือกรอบการประเมินก่อน');
+    return;
+  }
+  window.print();
+};
 
 onMounted(fetchPeriods);
 </script>

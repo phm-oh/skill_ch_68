@@ -179,13 +179,21 @@ exports.saveBulk = async (evaluateeId, periodId, items, scoreType, isSubmitted =
 // คำนวณคะแนนรวม
 exports.calculateFinal = async (evaluateeId, periodId) => {
   const results = await db(TABLE)
-    .select('evaluation_results.*', 'indicators.weight', 'indicators.type')
+    .select(
+      'evaluation_results.*',
+      'indicators.weight',
+      'indicators.type',
+      'users.name_th as evaluatee_name'
+    )
     .leftJoin('indicators', 'evaluation_results.indicator_id', 'indicators.id')
+    .leftJoin('users', 'evaluation_results.evaluatee_id', 'users.id')
     .where({ 'evaluation_results.evaluatee_id': evaluateeId, 'evaluation_results.period_id': periodId });
 
   let totalScore = 0;
   let selfTotal = 0;
   let evaluatorTotal = 0;
+  let evaluateeName = '-';
+  let status = 'draft';
 
   for (const r of results) {
     // Scores are already calculated as (selectedValue / maxValue) * weight
@@ -198,15 +206,27 @@ exports.calculateFinal = async (evaluateeId, periodId) => {
 
     // Use evaluator score if available, otherwise self score
     totalScore += evaluatorScore > 0 ? evaluatorScore : selfScore;
+
+    // Get evaluatee name from first result
+    if (!evaluateeName || evaluateeName === '-') {
+      evaluateeName = r.evaluatee_name || '-';
+    }
+
+    // Determine overall status (highest status wins)
+    if (r.status === 'approved') status = 'approved';
+    else if (r.status === 'evaluated' && status !== 'approved') status = 'evaluated';
+    else if (r.status === 'submitted' && status === 'draft') status = 'submitted';
   }
 
   return {
     evaluatee_id: evaluateeId,
+    evaluatee_name: evaluateeName,
     period_id: periodId,
     total_score: totalScore,
     final_score: totalScore,
     self_total: selfTotal,
-    evaluator_total: evaluatorTotal
+    evaluator_total: evaluatorTotal,
+    status: status
   };
 };
 

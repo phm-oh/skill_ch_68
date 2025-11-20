@@ -39,15 +39,15 @@
         </v-card>
 
         <base-card title="หลักฐานที่อัปโหลด" icon="mdi-file-document" class="mb-4">
-          <v-list v-if="evidences.length > 0">
-            <v-list-item v-for="evidence in evidences" :key="evidence.id">
+          <v-list v-if="evidencesWithFullURL.length > 0">
+            <v-list-item v-for="evidence in evidencesWithFullURL" :key="evidence.id">
               <template v-slot:prepend>
                 <v-icon :icon="evidence.mime_type?.includes('pdf') ? 'mdi-file-pdf' : 'mdi-image'" color="primary"></v-icon>
               </template>
               <v-list-item-title>{{ evidence.file_name }}</v-list-item-title>
               <v-list-item-subtitle v-if="evidence.size_bytes">ขนาด: {{ (evidence.size_bytes / 1024).toFixed(2) }} KB</v-list-item-subtitle>
               <template v-slot:append>
-                <v-btn :href="evidence.url" target="_blank" size="small" color="primary" variant="tonal">
+                <v-btn :href="evidence.fullUrl" target="_blank" size="small" color="primary" variant="tonal">
                   <v-icon icon="mdi-eye" start></v-icon>ดู
                 </v-btn>
               </template>
@@ -95,6 +95,17 @@ const evaluatee = ref(null);
 const period = ref(null);
 const topics = ref([]);
 const evidences = ref([]);
+
+// Backend base URL for file access
+const backendURL = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:7000';
+
+// Computed evidences with full URL
+const evidencesWithFullURL = computed(() =>
+  evidences.value.map(e => ({
+    ...e,
+    fullUrl: e.url?.startsWith('http') ? e.url : `${backendURL}${e.url}`
+  }))
+);
 
 const evaluationTypes = [
   { text: 'แบบ ใช่/ไม่ใช่', value: 'yes_no' },

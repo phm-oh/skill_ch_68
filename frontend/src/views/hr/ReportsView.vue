@@ -7,7 +7,7 @@
         </v-btn>
         <div class="d-flex justify-space-between align-center mb-4">
           <h1 class="text-h4">รายงานการประเมิน</h1>
-          <v-btn color="primary" @click="window.print()" :disabled="!selectedPeriod">
+          <v-btn color="primary" @click="exportPDF" :disabled="!selectedPeriod">
             <v-icon icon="mdi-printer" start></v-icon>Export PDF
           </v-btn>
         </div>
@@ -127,6 +127,14 @@ const getScoreColor = (score) => {
   return 'text-error';
 };
 
+const exportPDF = () => {
+  if (!selectedPeriod.value) {
+    notificationStore.error('กรุณาเลือกรอบการประเมินก่อน');
+    return;
+  }
+  window.print();
+};
+
 const fetchPeriods = async () => {
   try {
     const response = await periodService.getAll();
@@ -140,29 +148,70 @@ const fetchReportData = async () => {
   if (!selectedPeriod.value) return;
   loading.value = true;
   try {
-    const response = await evaluationService.getAll();
-    const allResults = response.data.items || response.data.data || [];
-    const groupedData = {};
-    const statusOrder = { draft: 0, submitted: 1, evaluated: 2, approved: 3 };
-    allResults.filter(result => result.period_id === selectedPeriod.value).forEach(result => {
-      const key = result.evaluatee_id;
-      if (!groupedData[key]) {
-        groupedData[key] = {
-          evaluatee_id: result.evaluatee_id,
-          evaluatee_name: result.evaluatee_name || result.name_th,
-          status: result.status || 'draft',
-          total_score: null
-        };
+    // Fetch all assignments for this period to get evaluatee list
+    const assignmentsRes = await evaluationService.getAll();
+    const allResults = assignmentsRes.data.items || assignmentsRes.data.data || [];
+
+    // Filter by period and group by evaluatee
+    const evaluateeIds = [...new Set(
+      allResults
+        .filter(r => r.period_id === selectedPeriod.value)
+        .map(r => r.evaluatee_id)
+    )];
+
+    console.log('[ReportsView] Evaluatee IDs:', evaluateeIds);
+
+    // Fetch summary for each evaluatee
+    const summaryPromises = evaluateeIds.map(evaluateeId =>
+      evaluationService.getSummary(evaluateeId, selectedPeriod.value)
+        .then(res => ({
+          evaluatee_id: evaluateeId,
+          evaluatee_name: res.data.data?.evaluatee_name || '-',
+          total_score: res.data.data?.total_score || res.data.data?.evaluator_total || 0,
+          status: res.data.data?.status || 'draft'
+        }))
+        .catch(err => {
+          console.error(`[ReportsView] Error fetching summary for ${evaluateeId}:`, err);
+          return {
+            evaluatee_id: evaluateeId,
+            evaluatee_name: '-',
+            total_score: 0,
+            status: 'draft'
+          };
+        })
+    );
+
+    const summaries = await Promise.all(summaryPromises);
+
+    // Get evaluatee names from results if not in summary
+    summaries.forEach(summary => {
+      if (summary.evaluatee_name === '-') {
+        const result = allResults.find(r => r.evaluatee_id === summary.evaluatee_id);
+        if (result) {
+          summary.evaluatee_name = result.evaluatee_name || result.name_th || '-';
+        }
       }
-      if (statusOrder[result.status] > statusOrder[groupedData[key].status]) {
-        groupedData[key].status = result.status;
-      }
-      if (result.total_score) {
-        groupedData[key].total_score = result.total_score;
+
+      // Determine status from results if not in summary
+      if (summary.status === 'draft') {
+        const evaluateeResults = allResults.filter(r =>
+          r.evaluatee_id === summary.evaluatee_id &&
+          r.period_id === selectedPeriod.value
+        );
+        const anyApproved = evaluateeResults.some(r => r.status === 'approved');
+        const anyEvaluated = evaluateeResults.some(r => r.evaluator_score !== null);
+        const anySubmitted = evaluateeResults.some(r => r.self_score !== null);
+
+        if (anyApproved) summary.status = 'approved';
+        else if (anyEvaluated) summary.status = 'evaluated';
+        else if (anySubmitted) summary.status = 'submitted';
       }
     });
-    reportData.value = Object.values(groupedData);
+
+    console.log('[ReportsView] Summaries:', summaries);
+    reportData.value = summaries;
   } catch (error) {
+    console.error('[ReportsView] Fetch error:', error);
     notificationStore.error('ไม่สามารถโหลดข้อมูลรายงานได้');
   } finally {
     loading.value = false;
