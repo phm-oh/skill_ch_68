@@ -79,7 +79,7 @@ import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { useAuthStore } from '@/stores/auth';
 import { useNotificationStore } from '@/stores/notification';
-import periodService from '@/services/periodService';
+import assignmentService from '@/services/assignmentService';
 import evaluationService from '@/services/evaluationService';
 import topicService from '@/services/topicService';
 import BaseCard from '@/components/base/BaseCard.vue';
@@ -104,10 +104,26 @@ const quickActions = [
 const fetchData = async () => {
   loading.value = true;
   try {
-    const periodsRes = await periodService.getActive();
-    // Backend ส่ง { success: true, items: [...] }
-    const periods = periodsRes.data.items || periodsRes.data.data || [];
-    activePeriods.value = Array.isArray(periods) ? periods : [periods].filter(Boolean);
+    // ดึง assignments ของ evaluatee (รวม period info)
+    const assignmentsRes = await assignmentService.getMine();
+    const assignments = assignmentsRes.data.items || assignmentsRes.data.data || [];
+
+    // แปลง assignments เป็น periods (distinct by period_id)
+    const periodMap = new Map();
+    for (const assignment of assignments) {
+      if (!periodMap.has(assignment.period_id)) {
+        periodMap.set(assignment.period_id, {
+          id: assignment.period_id,
+          name_th: assignment.period_name,
+          name: assignment.period_name,
+          start_date: assignment.start_date,
+          end_date: assignment.end_date,
+          is_active: assignment.is_active
+        });
+      }
+    }
+
+    activePeriods.value = Array.from(periodMap.values());
 
     for (const period of activePeriods.value) {
       try {
