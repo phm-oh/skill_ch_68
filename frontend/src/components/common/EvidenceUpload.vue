@@ -1,6 +1,9 @@
 <template>
-  <v-card elevation="2">
-    <v-card-title>แนบหลักฐาน</v-card-title>
+  <v-card elevation="2" color="blue-lighten-5" border>
+    <v-card-title class="bg-blue-lighten-4">
+      <v-icon icon="mdi-file-upload" start color="primary"></v-icon>
+      แนบหลักฐาน
+    </v-card-title>
 
     <v-card-text>
       <!-- File Upload -->

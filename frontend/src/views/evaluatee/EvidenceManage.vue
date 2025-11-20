@@ -173,8 +173,22 @@ const deleteFile = async () => {
   }
 };
 
+const getFileUrl = (file) => {
+  const relativePath = file.file_url || file.url;
+  if (!relativePath) return null;
+  // ถ้าเป็น relative path (/uploads/...) ให้เพิ่ม base URL
+  if (relativePath.startsWith('/')) {
+    const baseURL = import.meta.env.VITE_API_URL || 'http://localhost:7000/api';
+    // เอา /api ออกเพื่อให้ได้ http://localhost:7000
+    const apiBase = baseURL.replace('/api', '');
+    return apiBase + relativePath;
+  }
+  // ถ้าเป็น full URL แล้วใช้เลย
+  return relativePath;
+};
+
 const viewFile = (file) => {
-  const fileUrl = file.file_url || file.url;
+  const fileUrl = getFileUrl(file);
   if (fileUrl) {
     window.open(fileUrl, '_blank');
   } else {
@@ -184,7 +198,7 @@ const viewFile = (file) => {
 
 const downloadFile = (file) => {
   const link = document.createElement('a');
-  link.href = file.file_url || file.url;
+  link.href = getFileUrl(file);
   link.download = file.file_name;
   link.click();
 };

@@ -238,11 +238,11 @@ const saveResults = async (isSubmit) => {
     const data = {
       period_id: selectedPeriodId.value,
       is_submitted: isSubmit,
-      results: []
+      items: []
     };
     topics.value.forEach(topic => {
       topic.indicators.forEach(indicator => {
-        data.results.push({
+        data.items.push({
           indicator_id: indicator.id,
           self_selected_value: indicator.selected_value,
           self_comment: indicator.comment,

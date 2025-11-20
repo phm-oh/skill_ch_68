@@ -108,15 +108,7 @@ exports.remove = async (req, res, next) => {
       return res.status(403).json({ success: false, message: 'Admin only' });
     }
 
-    // ตรวจว่ามี indicators อยู่หรือไม่
-    const count = await topicsRepo.countIndicators(req.params.id);
-    if (count > 0) {
-      return res.status(400).json({ 
-        success: false, 
-        message: `Cannot delete topic with ${count} indicators. Delete indicators first.` 
-      });
-    }
-
+    // CASCADE enabled in schema - indicators will be deleted automatically
     const deleted = await topicsRepo.remove(req.params.id);
     if (!deleted) {
       return res.status(404).json({ success: false, message: 'Topic not found' });
