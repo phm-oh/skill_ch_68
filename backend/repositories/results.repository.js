@@ -101,18 +101,43 @@ exports.saveEvaluator = async (evaluateeId, indicatorId, periodId, score) => {
 exports.saveBulk = async (evaluateeId, periodId, items, scoreType) => {
   for (const item of items) {
     const exists = await exports.exists(evaluateeId, item.indicator_id, periodId);
-    
+
+    let updateData = {};
+    let insertData = {
+      evaluatee_id: evaluateeId,
+      indicator_id: item.indicator_id,
+      period_id: periodId
+    };
+
+    // Handle different score types with their associated fields
+    if (scoreType === 'self_score') {
+      updateData = {
+        self_score: item.self_score,
+        self_note: item.self_comment || null
+      };
+      insertData = {
+        ...insertData,
+        self_score: item.self_score,
+        self_note: item.self_comment || null
+      };
+    } else if (scoreType === 'evaluator_score') {
+      updateData = {
+        evaluator_score: item.evaluator_score,
+        evaluator_note: item.evaluator_note || null
+      };
+      insertData = {
+        ...insertData,
+        evaluator_score: item.evaluator_score,
+        evaluator_note: item.evaluator_note || null
+      };
+    }
+
     if (exists) {
       await db(TABLE)
         .where({ evaluatee_id: evaluateeId, indicator_id: item.indicator_id, period_id: periodId })
-        .update({ [scoreType]: item.score });
+        .update(updateData);
     } else {
-      await db(TABLE).insert({
-        evaluatee_id: evaluateeId,
-        indicator_id: item.indicator_id,
-        period_id: periodId,
-        [scoreType]: item.score
-      });
+      await db(TABLE).insert(insertData);
     }
   }
   return { saved: items.length };

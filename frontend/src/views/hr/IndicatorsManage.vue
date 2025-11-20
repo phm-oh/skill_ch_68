@@ -25,6 +25,8 @@
       </template>
       <template v-slot:item.actions="{ item }">
         <v-btn icon="mdi-pencil" size="small" variant="text" color="primary" @click="openDialog(item)"></v-btn>
+        <v-btn :icon="item.active ? 'mdi-eye-off' : 'mdi-eye'" size="small" variant="text"
+          :color="item.active ? 'warning' : 'success'" @click="toggleActive(item)"></v-btn>
         <v-btn icon="mdi-delete" size="small" variant="text" color="error" @click="confirmDelete(item)"></v-btn>
       </template>
     </base-table>
@@ -153,6 +155,17 @@ const handleSave = async () => {
     notificationStore.error('เกิดข้อผิดพลาด: ' + (error.response?.data?.message || error.message));
   } finally {
     saving.value = false;
+  }
+};
+
+const toggleActive = async (item) => {
+  try {
+    const data = { ...item, active: item.active ? 0 : 1 };
+    await topicService.updateIndicator(item.id, data);
+    notificationStore.success('เปลี่ยนสถานะสำเร็จ');
+    fetchIndicators();
+  } catch (error) {
+    notificationStore.error('ไม่สามารถเปลี่ยนสถานะได้');
   }
 };
 

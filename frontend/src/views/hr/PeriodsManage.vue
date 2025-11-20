@@ -133,7 +133,8 @@ const handleSave = async () => {
 
 const toggleActive = async (item) => {
   try {
-    await periodService.update(item.id, { ...item, is_active: !item.is_active });
+    const data = { ...item, is_active: item.is_active ? 0 : 1 };
+    await periodService.update(item.id, data);
     notificationStore.success('เปลี่ยนสถานะสำเร็จ');
     fetchPeriods();
   } catch (error) {
