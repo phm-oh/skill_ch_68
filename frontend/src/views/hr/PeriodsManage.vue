@@ -104,9 +104,25 @@ const fetchPeriods = async () => {
   }
 };
 
+const formatDateForInput = (dateStr) => {
+  if (!dateStr) return '';
+  // Convert ISO date or MySQL date to YYYY-MM-DD format
+  const date = new Date(dateStr);
+  if (isNaN(date.getTime())) return '';
+  return date.toISOString().split('T')[0];
+};
+
 const openDialog = (item = null) => {
   isEdit.value = !!item;
-  form.value = item ? { ...item } : { code: '', name_th: '', buddhist_year: new Date().getFullYear() + 543, start_date: '', end_date: '', is_active: true };
+  if (item) {
+    form.value = {
+      ...item,
+      start_date: formatDateForInput(item.start_date),
+      end_date: formatDateForInput(item.end_date)
+    };
+  } else {
+    form.value = { code: '', name_th: '', buddhist_year: new Date().getFullYear() + 543, start_date: '', end_date: '', is_active: true };
+  }
   dialog.value = true;
 };
 
@@ -126,7 +142,11 @@ const handleSave = async () => {
   saving.value = true;
   try {
     const data = {
-      ...form.value,
+      code: form.value.code,
+      name_th: form.value.name_th,
+      buddhist_year: form.value.buddhist_year,
+      start_date: form.value.start_date, // Already in YYYY-MM-DD format from input
+      end_date: form.value.end_date, // Already in YYYY-MM-DD format from input
       is_active: form.value.is_active ? 1 : 0
     };
 
@@ -158,8 +178,8 @@ const toggleActive = async (item) => {
       code: item.code,
       name_th: item.name_th,
       buddhist_year: item.buddhist_year,
-      start_date: item.start_date,
-      end_date: item.end_date,
+      start_date: formatDateForInput(item.start_date),
+      end_date: formatDateForInput(item.end_date),
       is_active: item.is_active ? 0 : 1
     };
     await periodService.update(item.id, data);

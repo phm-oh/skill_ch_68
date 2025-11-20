@@ -12,11 +12,32 @@ exports.findById = async (id) => {
   return db(TABLE).where({ id }).first();
 };
 
-// ดึงผลของบุคคลใน period
+// ดึงผลของบุคคลใน period พร้อม JOIN ข้อมูลที่เกี่ยวข้อง
 exports.findByEvaluateePeriod = async (evaluateeId, periodId) => {
   return db(TABLE)
-    .where({ evaluatee_id: evaluateeId, period_id: periodId })
-    .orderBy('indicator_id', 'asc');
+    .select(
+      'evaluation_results.*',
+      'indicators.id as indicator_id',
+      'indicators.name_th as indicator_name',
+      'indicators.type as indicator_type',
+      'indicators.weight as indicator_weight',
+      'topics.id as topic_id',
+      'topics.title_th as topic_title',
+      'topics.weight as topic_weight',
+      'users.id as evaluatee_id',
+      'users.name_th as evaluatee_name',
+      'users.department',
+      'users.position',
+      'periods.id as period_id',
+      'periods.name_th as period_name'
+    )
+    .leftJoin('indicators', 'evaluation_results.indicator_id', 'indicators.id')
+    .leftJoin('evaluation_topics as topics', 'indicators.topic_id', 'topics.id')
+    .leftJoin('users', 'evaluation_results.evaluatee_id', 'users.id')
+    .leftJoin('evaluation_periods as periods', 'evaluation_results.period_id', 'periods.id')
+    .where({ 'evaluation_results.evaluatee_id': evaluateeId, 'evaluation_results.period_id': periodId })
+    .orderBy('topics.id', 'asc')
+    .orderBy('indicators.id', 'asc');
 };
 
 // ตรวจสอบว่ามีแล้วหรือไม่

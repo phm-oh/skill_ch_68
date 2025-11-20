@@ -132,37 +132,55 @@ const fetchData = async () => {
       uploadService.getForEvaluator(evaluateeId.value)
     ]);
 
-    // Backend ส่ง { success: true, items: [...] } หรือ { data: [...] }
+    // Backend ส่ง { success: true, items: [...] } - ข้อมูล flat structure
     const results = evalRes.data.items || evalRes.data.data || [];
+    console.log('[EvaluationReview] Fetched results:', results);
+
     if (results.length === 0) {
       notificationStore.error('ไม่พบข้อมูลการประเมิน');
       return;
     }
 
-    evaluatee.value = results[0].evaluatee;
-    period.value = results[0].period;
+    // ข้อมูล evaluatee และ period จาก flat structure
+    evaluatee.value = {
+      name: results[0].evaluatee_name,
+      department: results[0].department,
+      position: results[0].position
+    };
+    period.value = {
+      name: results[0].period_name
+    };
 
     const topicMap = new Map();
     results.forEach(result => {
-      const topicId = result.indicator?.topic_id;
-      const topicName = result.indicator?.topic?.title_th;
-      const topicWeight = result.indicator?.topic?.weight;
+      const topicId = result.topic_id;
+      const topicName = result.topic_title;
+      const topicWeight = result.topic_weight;
 
       if (!topicMap.has(topicId)) {
         topicMap.set(topicId, { id: topicId, title_th: topicName, weight: topicWeight, indicators: [] });
       }
 
+      // Calculate selected value from score (score = selected_value * weight / 100)
+      // So selected_value = score * 100 / weight
+      const selfSelectedValue = result.self_score && result.indicator_weight
+        ? Math.round(result.self_score * 100 / result.indicator_weight)
+        : null;
+      const evaluatorSelectedValue = result.evaluator_score && result.indicator_weight
+        ? Math.round(result.evaluator_score * 100 / result.indicator_weight)
+        : null;
+
       topicMap.get(topicId).indicators.push({
         id: result.indicator_id,
-        name_th: result.indicator?.name_th,
-        type: result.indicator?.type,
-        weight: result.indicator?.weight,
-        self_selected_value: result.self_selected_value,
-        self_score: result.self_score,
-        self_comment: result.self_comment,
-        evaluator_selected_value: result.evaluator_selected_value,
+        name_th: result.indicator_name,
+        type: result.indicator_type,
+        weight: result.indicator_weight,
+        self_selected_value: selfSelectedValue,
+        self_score: result.self_score || 0,
+        self_comment: result.self_note,
+        evaluator_selected_value: evaluatorSelectedValue,
         evaluator_score: result.evaluator_score || 0,
-        evaluator_comment: result.evaluator_comment || ''
+        evaluator_comment: result.evaluator_note || ''
       });
     });
 
@@ -178,20 +196,28 @@ const fetchData = async () => {
 const saveEvaluation = async () => {
   saving.value = true;
   try {
-    const data = { period_id: periodId.value, evaluatee_id: evaluateeId.value, results: [] };
+    const items = [];
     topics.value.forEach(topic => {
       topic.indicators.forEach(indicator => {
-        data.results.push({
+        items.push({
           indicator_id: indicator.id,
-          evaluator_selected_value: indicator.evaluator_selected_value,
-          evaluator_comment: indicator.evaluator_comment,
-          evaluator_score: calculateScore(indicator.evaluator_selected_value, indicator.weight)
+          evaluator_score: calculateScore(indicator.evaluator_selected_value, indicator.weight),
+          evaluator_note: indicator.evaluator_comment
         });
       });
     });
+
+    const data = {
+      period_id: parseInt(periodId.value),
+      evaluatee_id: parseInt(evaluateeId.value),
+      items: items
+    };
+
+    console.log('[EvaluationReview] Saving evaluation:', data);
     await evaluationService.evaluateBulk(data);
     notificationStore.success('บันทึกการประเมินสำเร็จ');
   } catch (error) {
+    console.error('[EvaluationReview] Save error:', error);
     notificationStore.error('เกิดข้อผิดพลาด: ' + (error.response?.data?.message || error.message));
   } finally {
     saving.value = false;
