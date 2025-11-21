@@ -7,20 +7,20 @@ const auth = require('../middlewares/auth');
 // ใช้ auth middleware สำหรับทุก route ในไฟล์นี้
 router.use(auth());
 
-// GET /api/reports/individual/:evaluateeId/:periodId
+// GET /api/reports/individual/:evaluateeId/:assignmentId (เปลี่ยน periodId → assignmentId)
 // สรุปผลการประเมินรายบุคคล
-router.get('/individual/:evaluateeId/:periodId', ctrl.getIndividualSummary);
+router.get('/individual/:evaluateeId/:assignmentId', ctrl.getIndividualSummary);
 
-// GET /api/reports/overall/:periodId
-// สรุปภาพรวมทั้งหมดในรอบประเมิน
-router.get('/overall/:periodId', ctrl.getOverallSummary);
+// GET /api/reports/overall/:assignmentId (เปลี่ยน periodId → assignmentId)
+// สรุปภาพรวมทั้งหมดใน assignment
+router.get('/overall/:assignmentId', ctrl.getOverallSummary);
 
-// GET /api/reports/topics/:periodId
+// GET /api/reports/topics/:assignmentId (เปลี่ยน periodId → assignmentId)
 // สรุปคะแนนตามหัวข้อประเมิน
-router.get('/topics/:periodId', ctrl.getTopicSummary);
+router.get('/topics/:assignmentId', ctrl.getTopicSummary);
 
-// GET /api/reports/export-pdf/:evaluateeId/:periodId
+// GET /api/reports/export-pdf/:evaluateeId/:assignmentId (เปลี่ยน periodId → assignmentId)
 // Export PDF สำหรับรายงานรายบุคคล
-router.get('/export-pdf/:evaluateeId/:periodId', ctrl.exportPDF);
+router.get('/export-pdf/:evaluateeId/:assignmentId', ctrl.exportPDF);
 
 module.exports = router;

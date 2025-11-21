@@ -7,7 +7,7 @@
 
     <base-card v-if="evaluatee" :title="evaluatee.name" icon="mdi-account" class="mb-4">
       <v-row>
-        <v-col cols="12"><strong>รอบการประเมิน:</strong> {{ period?.name || '-' }}</v-col>
+        <v-col cols="12"><strong>รอบการประเมิน:</strong> {{ assignmentInfo || '-' }}</v-col>
       </v-row>
     </base-card>
 
@@ -110,11 +110,11 @@ const route = useRoute();
 const authStore = useAuthStore();
 const notificationStore = useNotificationStore();
 const evaluateeId = computed(() => route.params.evaluateeId);
-const periodId = computed(() => route.params.periodId);
+const assignmentId = computed(() => route.params.assignmentId);
 const loading = ref(false);
 const saving = ref(false);
 const evaluatee = ref(null);
-const period = ref(null);
+const assignment = ref(null);
 const topics = ref([]);
 const signatureConfirmed = ref(false);
 const evidences = ref([]);
@@ -167,13 +167,21 @@ const totalScore = computed(() => topics.value.reduce((sum, topic) =>
 
 const canSave = computed(() => topics.value.every(topic => topic.indicators?.every(ind => ind.evaluator_selected_value !== undefined && ind.evaluator_selected_value !== null) ?? false));
 
+const assignmentInfo = computed(() => {
+  if (!assignment.value) return null;
+  if (assignment.value.start_date && assignment.value.end_date) {
+    return `${new Date(assignment.value.start_date).toLocaleDateString('th-TH')} - ${new Date(assignment.value.end_date).toLocaleDateString('th-TH')}`;
+  }
+  return 'ไม่ระบุช่วงเวลา';
+});
+
 const fetchData = async () => {
   loading.value = true;
   try {
-    console.log('[EvaluationReview] Starting fetch for evaluateeId:', evaluateeId.value, 'periodId:', periodId.value);
+    console.log('[EvaluationReview] Starting fetch for evaluateeId:', evaluateeId.value, 'assignmentId:', assignmentId.value);
 
     const [evalRes, evidenceRes] = await Promise.all([
-      evaluationService.getByEvaluatee(evaluateeId.value, periodId.value),
+      evaluationService.getByEvaluatee(evaluateeId.value, assignmentId.value),
       uploadService.getForEvaluator(evaluateeId.value)
     ]);
 
@@ -190,16 +198,21 @@ const fetchData = async () => {
 
     console.log('[EvaluationReview] First result:', results[0]);
 
-    // ข้อมูล evaluatee และ period จาก flat structure
+    // ข้อมูล evaluatee จาก flat structure
     evaluatee.value = {
       name: results[0].evaluatee_name
     };
-    period.value = {
-      name: results[0].period_name
-    };
+
+    // Fetch assignment info
+    try {
+      const assignmentRes = await assignmentService.getById(assignmentId.value);
+      assignment.value = assignmentRes.data.data || assignmentRes.data;
+    } catch (error) {
+      console.error('[EvaluationReview] Error fetching assignment:', error);
+    }
 
     console.log('[EvaluationReview] Evaluatee:', evaluatee.value);
-    console.log('[EvaluationReview] Period:', period.value);
+    console.log('[EvaluationReview] Assignment:', assignment.value);
 
     const topicMap = new Map();
     results.forEach(result => {
@@ -218,13 +231,17 @@ const fetchData = async () => {
         topicMap.set(topicId, { id: topicId, title_th: topicName, weight: topicWeight, indicators: [] });
       }
 
-      // Calculate selected value from score (score = selected_value * weight / 100)
-      // So selected_value = score * 100 / weight
+      // Calculate selected value from score
+      // Formula: score = (selected_value / max_value) * weight
+      // So: selected_value = (score / weight) * max_value
+      const getMaxValue = (type) => type === 'score_1_4' ? 4 : 1;
+      const maxValue = getMaxValue(result.indicator_type);
+      
       const selfSelectedValue = result.self_score && result.indicator_weight
-        ? Math.round(result.self_score * 100 / result.indicator_weight)
+        ? Math.round((result.self_score / result.indicator_weight) * maxValue)
         : null;
       const evaluatorSelectedValue = result.evaluator_score && result.indicator_weight
-        ? Math.round(result.evaluator_score * 100 / result.indicator_weight)
+        ? Math.round((result.evaluator_score / result.indicator_weight) * maxValue)
         : null;
 
       topicMap.get(topicId).indicators.push({
@@ -279,7 +296,7 @@ const saveEvaluation = async () => {
     });
 
     const data = {
-      period_id: parseInt(periodId.value),
+      assignment_id: parseInt(assignmentId.value),
       evaluatee_id: parseInt(evaluateeId.value),
       items: items
     };
@@ -301,7 +318,7 @@ const saveEvaluation = async () => {
 
     await signatureService.create({
       evaluatee_id: parseInt(evaluateeId.value),
-      period_id: parseInt(periodId.value),
+      assignment_id: parseInt(assignmentId.value),
       signature_data: signatureText
     });
 

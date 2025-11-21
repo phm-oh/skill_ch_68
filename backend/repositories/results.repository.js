@@ -12,8 +12,8 @@ exports.findById = async (id) => {
   return db(TABLE).where({ id }).first();
 };
 
-// ดึงผลของบุคคลใน period พร้อม JOIN ข้อมูลที่เกี่ยวข้อง
-exports.findByEvaluateePeriod = async (evaluateeId, periodId) => {
+// ดึงผลของบุคคลใน assignment พร้อม JOIN ข้อมูลที่เกี่ยวข้อง (เปลี่ยน period_id → assignment_id)
+exports.findByEvaluateeAssignment = async (evaluateeId, assignmentId) => {
   return db(TABLE)
     .select(
       'results.*',
@@ -26,32 +26,34 @@ exports.findByEvaluateePeriod = async (evaluateeId, periodId) => {
       'topics.weight as topic_weight',
       'users.id as evaluatee_id',
       'users.name_th as evaluatee_name',
-      'periods.id as period_id',
-      'periods.name_th as period_name'
+      'assignments.id as assignment_id',
+      'assignments.start_date',
+      'assignments.end_date',
+      'assignments.is_active'
     )
     .leftJoin('indicators', 'results.indicator_id', 'indicators.id')
     .leftJoin('topics', 'indicators.topic_id', 'topics.id')
     .leftJoin('users', 'results.evaluatee_id', 'users.id')
-    .leftJoin('periods', 'results.period_id', 'periods.id')
-    .where({ 'results.evaluatee_id': evaluateeId, 'results.period_id': periodId })
+    .leftJoin('assignments', 'results.assignment_id', 'assignments.id')
+    .where({ 'results.evaluatee_id': evaluateeId, 'results.assignment_id': assignmentId })
     .orderBy('topics.id', 'asc')
     .orderBy('indicators.id', 'asc');
 };
 
-// ตรวจสอบว่ามีแล้วหรือไม่
-exports.exists = async (evaluateeId, indicatorId, periodId) => {
+// ตรวจสอบว่ามีแล้วหรือไม่ (เปลี่ยน period_id → assignment_id)
+exports.exists = async (evaluateeId, indicatorId, assignmentId) => {
   const row = await db(TABLE)
-    .where({ evaluatee_id: evaluateeId, indicator_id: indicatorId, period_id: periodId })
+    .where({ evaluatee_id: evaluateeId, indicator_id: indicatorId, assignment_id: assignmentId })
     .first();
   return !!row;
 };
 
-// สร้างใหม่
+// สร้างใหม่ (เปลี่ยน period_id → assignment_id)
 exports.create = async (payload) => {
   const exists = await exports.exists(
     payload.evaluatee_id,
     payload.indicator_id,
-    payload.period_id
+    payload.assignment_id
   );
   if (exists) throw new Error('Result already exists');
 
@@ -70,62 +72,62 @@ exports.update = async (id, payload) => {
   return exports.findById(id);
 };
 
-// บันทึกคะแนนตนเอง
-exports.saveSelf = async (evaluateeId, indicatorId, periodId, score) => {
-  const exists = await exports.exists(evaluateeId, indicatorId, periodId);
+// บันทึกคะแนนตนเอง (เปลี่ยน period_id → assignment_id)
+exports.saveSelf = async (evaluateeId, indicatorId, assignmentId, score) => {
+  const exists = await exports.exists(evaluateeId, indicatorId, assignmentId);
   
   if (exists) {
     // อัปเดต
     await db(TABLE)
-      .where({ evaluatee_id: evaluateeId, indicator_id: indicatorId, period_id: periodId })
+      .where({ evaluatee_id: evaluateeId, indicator_id: indicatorId, assignment_id: assignmentId })
       .update({ self_score: score });
   } else {
     // สร้างใหม่
     await db(TABLE).insert({
       evaluatee_id: evaluateeId,
       indicator_id: indicatorId,
-      period_id: periodId,
+      assignment_id: assignmentId,
       self_score: score
     });
   }
 
   return db(TABLE)
-    .where({ evaluatee_id: evaluateeId, indicator_id: indicatorId, period_id: periodId })
+    .where({ evaluatee_id: evaluateeId, indicator_id: indicatorId, assignment_id: assignmentId })
     .first();
 };
 
-// บันทึกคะแนนจากกรรมการ
-exports.saveEvaluator = async (evaluateeId, indicatorId, periodId, score) => {
-  const exists = await exports.exists(evaluateeId, indicatorId, periodId);
+// บันทึกคะแนนจากกรรมการ (เปลี่ยน period_id → assignment_id)
+exports.saveEvaluator = async (evaluateeId, indicatorId, assignmentId, score) => {
+  const exists = await exports.exists(evaluateeId, indicatorId, assignmentId);
   
   if (exists) {
     await db(TABLE)
-      .where({ evaluatee_id: evaluateeId, indicator_id: indicatorId, period_id: periodId })
+      .where({ evaluatee_id: evaluateeId, indicator_id: indicatorId, assignment_id: assignmentId })
       .update({ evaluator_score: score });
   } else {
     await db(TABLE).insert({
       evaluatee_id: evaluateeId,
       indicator_id: indicatorId,
-      period_id: periodId,
+      assignment_id: assignmentId,
       evaluator_score: score
     });
   }
 
   return db(TABLE)
-    .where({ evaluatee_id: evaluateeId, indicator_id: indicatorId, period_id: periodId })
+    .where({ evaluatee_id: evaluateeId, indicator_id: indicatorId, assignment_id: assignmentId })
     .first();
 };
 
-// บันทึกหลายรายการ
-exports.saveBulk = async (evaluateeId, periodId, items, scoreType, isSubmitted = false) => {
+// บันทึกหลายรายการ (เปลี่ยน period_id → assignment_id)
+exports.saveBulk = async (evaluateeId, assignmentId, items, scoreType, isSubmitted = false) => {
   for (const item of items) {
-    const exists = await exports.exists(evaluateeId, item.indicator_id, periodId);
+    const exists = await exports.exists(evaluateeId, item.indicator_id, assignmentId);
 
     let updateData = {};
     let insertData = {
       evaluatee_id: evaluateeId,
       indicator_id: item.indicator_id,
-      period_id: periodId
+      assignment_id: assignmentId
     };
 
     // Handle different score types with their associated fields
@@ -165,7 +167,7 @@ exports.saveBulk = async (evaluateeId, periodId, items, scoreType, isSubmitted =
 
     if (exists) {
       await db(TABLE)
-        .where({ evaluatee_id: evaluateeId, indicator_id: item.indicator_id, period_id: periodId })
+        .where({ evaluatee_id: evaluateeId, indicator_id: item.indicator_id, assignment_id: assignmentId })
         .update(updateData);
     } else {
       await db(TABLE).insert(insertData);
@@ -174,8 +176,8 @@ exports.saveBulk = async (evaluateeId, periodId, items, scoreType, isSubmitted =
   return { saved: items.length };
 };
 
-// คำนวณคะแนนรวม
-exports.calculateFinal = async (evaluateeId, periodId) => {
+// คำนวณคะแนนรวม (เปลี่ยน period_id → assignment_id)
+exports.calculateFinal = async (evaluateeId, assignmentId) => {
   const results = await db(TABLE)
     .select(
       'results.*',
@@ -185,7 +187,7 @@ exports.calculateFinal = async (evaluateeId, periodId) => {
     )
     .leftJoin('indicators', 'results.indicator_id', 'indicators.id')
     .leftJoin('users', 'results.evaluatee_id', 'users.id')
-    .where({ 'results.evaluatee_id': evaluateeId, 'results.period_id': periodId });
+    .where({ 'results.evaluatee_id': evaluateeId, 'results.assignment_id': assignmentId });
 
   let totalScore = 0;
   let selfTotal = 0;
@@ -193,14 +195,18 @@ exports.calculateFinal = async (evaluateeId, periodId) => {
   let evaluateeName = '-';
   let status = 'draft';
 
+  let totalWeight = 0;
+  
   for (const r of results) {
     // Scores are already calculated as (selectedValue / maxValue) * weight
     // So we just need to sum them up
     const selfScore = parseFloat(r.self_score) || 0;
     const evaluatorScore = parseFloat(r.evaluator_score) || 0;
+    const indicatorWeight = parseFloat(r.weight) || 0;
 
     selfTotal += selfScore;
     evaluatorTotal += evaluatorScore;
+    totalWeight += indicatorWeight;
 
     // Use evaluator score if available, otherwise self score
     totalScore += evaluatorScore > 0 ? evaluatorScore : selfScore;
@@ -216,14 +222,24 @@ exports.calculateFinal = async (evaluateeId, periodId) => {
     else if (r.status === 'submitted' && status === 'draft') status = 'submitted';
   }
 
+  // Normalize score to 100 if totalWeight > 0
+  // คะแนนเต็ม = totalWeight, แต่ระบบแสดงเป็น 100
+  const normalizeScore = (score) => {
+    if (totalWeight > 0) {
+      return (score / totalWeight) * 100;
+    }
+    return score;
+  };
+
   return {
     evaluatee_id: evaluateeId,
     evaluatee_name: evaluateeName,
-    period_id: periodId,
-    total_score: totalScore,
-    final_score: totalScore,
-    self_total: selfTotal,
-    evaluator_total: evaluatorTotal,
+    assignment_id: assignmentId,
+    total_score: normalizeScore(totalScore),
+    final_score: normalizeScore(totalScore),
+    self_total: normalizeScore(selfTotal),
+    evaluator_total: normalizeScore(evaluatorTotal),
+    total_weight: totalWeight,
     status: status
   };
 };
@@ -236,82 +252,24 @@ exports.remove = async (id) => {
 // backend/repositories/results.repository.js
 
 
-// สร้าง evaluation_results ให้ evaluatee ทุกคนในรอบประเมินที่กำหนด
-exports.initResultsForPeriod = async (periodId) => {
-  // ดึงรายชื่อ evaluatee ทั้งหมด (role = 'evaluatee' หรือ 'user')
-  const evaluatees = await db('users')
-    .select('id')
-    .whereIn('role', ['evaluatee', 'user'])
-    .where('is_active', true);
-
-  if (evaluatees.length === 0) {
-    return { created: 0, total_evaluatees: 0, total_indicators: 0 };
-  }
-
+// สร้าง evaluation_results ให้ evaluatee ใน assignment ที่กำหนด (เปลี่ยน period_id → assignment_id)
+exports.initResultsForAssignment = async (assignmentId, evaluateeId) => {
   // ดึง indicators ที่ active ทั้งหมด
   const indicators = await db('indicators')
     .select('id')
-    .where('is_active', true);
+    .where('active', 1);
 
   if (indicators.length === 0) {
-    return { created: 0, total_evaluatees: evaluatees.length, total_indicators: 0 };
-  }
-
-  // สร้าง records ให้ทุกคน
-  let createdCount = 0;
-  
-  for (const evaluatee of evaluatees) {
-    for (const indicator of indicators) {
-      // เช็คว่ามีอยู่แล้วหรือไม่
-      const existing = await db(TABLE)
-        .where({
-          period_id: periodId,
-          evaluatee_id: evaluatee.id,
-          indicator_id: indicator.id
-        })
-        .first();
-
-      if (!existing) {
-        await db(TABLE).insert({
-          period_id: periodId,
-          evaluatee_id: evaluatee.id,
-          indicator_id: indicator.id,
-          self_score: null,
-          self_note: null,
-          evaluator_score: null,
-          evaluator_id: null,
-          evaluator_note: null,
-          status: 'draft'
-        });
-        createdCount++;
-      }
-    }
-  }
-
-  return {
-    created: createdCount,
-    total_evaluatees: evaluatees.length,
-    total_indicators: indicators.length
-  };
-};
-
-// สร้าง evaluation_results ให้ evaluatee คนเดียวในรอบประเมินที่กำหนด
-exports.initResultsForEvaluatee = async (evaluateeId, periodId) => {
-  // ดึง indicators ที่ active
-  const indicators = await db('indicators')
-    .select('id')
-    .where('is_active', true);
-
-  if (indicators.length === 0) {
-    return { created: 0 };
+    return { created: 0, total_indicators: 0 };
   }
 
   let createdCount = 0;
 
   for (const indicator of indicators) {
+    // เช็คว่ามีอยู่แล้วหรือไม่
     const existing = await db(TABLE)
       .where({
-        period_id: periodId,
+        assignment_id: assignmentId,
         evaluatee_id: evaluateeId,
         indicator_id: indicator.id
       })
@@ -319,7 +277,7 @@ exports.initResultsForEvaluatee = async (evaluateeId, periodId) => {
 
     if (!existing) {
       await db(TABLE).insert({
-        period_id: periodId,
+        assignment_id: assignmentId,
         evaluatee_id: evaluateeId,
         indicator_id: indicator.id,
         self_score: null,
@@ -333,5 +291,10 @@ exports.initResultsForEvaluatee = async (evaluateeId, periodId) => {
     }
   }
 
-  return { created: createdCount };
+  return {
+    created: createdCount,
+    total_indicators: indicators.length
+  };
 };
+
+// (ลบ initResultsForEvaluatee แล้ว - ใช้ initResultsForAssignment แทน)

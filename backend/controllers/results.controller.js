@@ -1,5 +1,6 @@
 // controllers/results.controller.js
 const repo = require('../repositories/results.repository');
+const db = require('../db/knex');
 
 // GET /api/results
 exports.list = async (req, res, next) => {
@@ -22,95 +23,95 @@ exports.get = async (req, res, next) => {
   }
 };
 
-// GET /api/results/me/:periodId
+// GET /api/results/me/:assignmentId (เปลี่ยน periodId → assignmentId)
 exports.getMyResults = async (req, res, next) => {
   try {
     const userId = req.user.id;
-    const items = await repo.findByEvaluateePeriod(userId, req.params.periodId);
+    const items = await repo.findByEvaluateeAssignment(userId, req.params.assignmentId);
     res.json({ success: true, items, total: items.length });
   } catch (e) {
     next(e);
   }
 };
 
-// GET /api/results/evaluatee/:evaluateeId/:periodId
+// GET /api/results/evaluatee/:evaluateeId/:assignmentId (เปลี่ยน periodId → assignmentId)
 exports.getByEvaluatee = async (req, res, next) => {
   try {
-    const { evaluateeId, periodId } = req.params;
-    const items = await repo.findByEvaluateePeriod(evaluateeId, periodId);
+    const { evaluateeId, assignmentId } = req.params;
+    const items = await repo.findByEvaluateeAssignment(evaluateeId, assignmentId);
     res.json({ success: true, items, total: items.length });
   } catch (e) {
     next(e);
   }
 };
 
-// POST /api/results/self
+// POST /api/results/self (เปลี่ยน period_id → assignment_id)
 exports.saveSelf = async (req, res, next) => {
   try {
     const userId = req.user.id;
-    const { indicator_id, period_id, score } = req.body;
+    const { indicator_id, assignment_id, score } = req.body;
     if (!indicator_id) return res.status(400).json({ success: false, message: 'indicator_id required' });
-    if (!period_id) return res.status(400).json({ success: false, message: 'period_id required' });
+    if (!assignment_id) return res.status(400).json({ success: false, message: 'assignment_id required' });
     if (score === undefined) return res.status(400).json({ success: false, message: 'score required' });
 
-    const result = await repo.saveSelf(userId, indicator_id, period_id, score);
+    const result = await repo.saveSelf(userId, indicator_id, assignment_id, score);
     res.json({ success: true, data: result });
   } catch (e) {
     next(e);
   }
 };
 
-// POST /api/results/self/bulk
+// POST /api/results/self/bulk (เปลี่ยน period_id → assignment_id)
 exports.saveSelfBulk = async (req, res, next) => {
   try {
     const userId = req.user.id;
-    const { period_id, items, is_submitted } = req.body;
-    if (!period_id) return res.status(400).json({ success: false, message: 'period_id required' });
+    const { assignment_id, items, is_submitted } = req.body;
+    if (!assignment_id) return res.status(400).json({ success: false, message: 'assignment_id required' });
     if (!Array.isArray(items)) return res.status(400).json({ success: false, message: 'items array required' });
 
-    const result = await repo.saveBulk(userId, period_id, items, 'self_score', is_submitted);
+    const result = await repo.saveBulk(userId, assignment_id, items, 'self_score', is_submitted);
     res.json({ success: true, data: result });
   } catch (e) {
     next(e);
   }
 };
 
-// POST /api/results/evaluate
+// POST /api/results/evaluate (เปลี่ยน period_id → assignment_id)
 exports.evaluate = async (req, res, next) => {
   try {
-    const { evaluatee_id, indicator_id, period_id, score } = req.body;
+    const { evaluatee_id, indicator_id, assignment_id, score } = req.body;
     if (!evaluatee_id) return res.status(400).json({ success: false, message: 'evaluatee_id required' });
     if (!indicator_id) return res.status(400).json({ success: false, message: 'indicator_id required' });
-    if (!period_id) return res.status(400).json({ success: false, message: 'period_id required' });
+    if (!assignment_id) return res.status(400).json({ success: false, message: 'assignment_id required' });
     if (score === undefined) return res.status(400).json({ success: false, message: 'score required' });
 
-    const result = await repo.saveEvaluator(evaluatee_id, indicator_id, period_id, score);
+    const result = await repo.saveEvaluator(evaluatee_id, indicator_id, assignment_id, score);
     res.json({ success: true, data: result });
   } catch (e) {
     next(e);
   }
 };
 
-// POST /api/results/evaluate/bulk
+// POST /api/results/evaluate/bulk (เปลี่ยน period_id → assignment_id)
 exports.evaluateBulk = async (req, res, next) => {
   try {
-    const { evaluatee_id, period_id, items } = req.body;
+    const { evaluatee_id, assignment_id, items } = req.body;
     if (!evaluatee_id) return res.status(400).json({ success: false, message: 'evaluatee_id required' });
-    if (!period_id) return res.status(400).json({ success: false, message: 'period_id required' });
+    if (!assignment_id) return res.status(400).json({ success: false, message: 'assignment_id required' });
     if (!Array.isArray(items)) return res.status(400).json({ success: false, message: 'items array required' });
 
-    const result = await repo.saveBulk(evaluatee_id, period_id, items, 'evaluator_score');
+    const result = await repo.saveBulk(evaluatee_id, assignment_id, items, 'evaluator_score');
     res.json({ success: true, data: result });
   } catch (e) {
     next(e);
   }
 };
 
-// GET /api/results/summary/:evaluateeId/:periodId
+// GET /api/results/summary/:evaluateeId/:assignmentId (เปลี่ยน periodId → assignmentId)
 exports.getSummary = async (req, res, next) => {
   try {
-    const { evaluateeId, periodId } = req.params;
-    const summary = await repo.calculateFinal(evaluateeId, periodId);
+    const { evaluateeId, assignmentId } = req.params;
+    const summary = await repo.calculateFinal(evaluateeId, assignmentId);
     res.json({ success: true, data: summary });
   } catch (e) {
     next(e);
@@ -129,23 +130,23 @@ exports.remove = async (req, res, next) => {
 };
 
 
-// POST /api/results/self - ประเมินตนเอง
+// POST /api/results/self - ประเมินตนเอง (เปลี่ยน period_id → assignment_id)
 exports.submitSelf = async (req, res, next) => {
   try {
     const evaluateeId = req.user.id; // จาก JWT
-    const { period_id, indicator_id, self_score, self_note } = req.body;
+    const { assignment_id, indicator_id, self_score, self_note } = req.body;
     
     // Validation
-    if (!period_id || !indicator_id || self_score === undefined) {
+    if (!assignment_id || !indicator_id || self_score === undefined) {
       return res.status(400).json({ 
         success: false, 
-        message: 'period_id, indicator_id, self_score required' 
+        message: 'assignment_id, indicator_id, self_score required' 
       });
     }
     
     // Check if exists
     const existing = await db('results')
-      .where({ period_id, evaluatee_id: evaluateeId, indicator_id })
+      .where({ assignment_id, evaluatee_id: evaluateeId, indicator_id })
       .first();
     
     if (existing) {
@@ -161,7 +162,7 @@ exports.submitSelf = async (req, res, next) => {
     } else {
       // Insert
       await db('results').insert({
-        period_id,
+        assignment_id,
         evaluatee_id: evaluateeId,
         indicator_id,
         self_score,
@@ -172,7 +173,7 @@ exports.submitSelf = async (req, res, next) => {
     }
     
     const result = await db('results')
-      .where({ period_id, evaluatee_id: evaluateeId, indicator_id })
+      .where({ assignment_id, evaluatee_id: evaluateeId, indicator_id })
       .first();
     
     res.json({ success: true, data: result });
@@ -181,7 +182,7 @@ exports.submitSelf = async (req, res, next) => {
   }
 };
 
-// POST /api/results/evaluate - กรรมการให้คะแนน
+// POST /api/results/evaluate - กรรมการให้คะแนน (เปลี่ยน period_id → assignment_id)
 exports.submitEvaluate = async (req, res, next) => {
   try {
     const evaluatorId = req.user.id;
@@ -202,7 +203,7 @@ exports.submitEvaluate = async (req, res, next) => {
     
     const assignment = await db('assignments')
       .where({
-        period_id: result.period_id,
+        id: result.assignment_id,
         evaluatee_id: result.evaluatee_id,
         evaluator_id: evaluatorId
       })
@@ -234,14 +235,14 @@ exports.submitEvaluate = async (req, res, next) => {
   }
 };
 
-// GET /api/results/my-progress - ดูความคืบหน้าตัวเอง
+// GET /api/results/my-progress - ดูความคืบหน้าตัวเอง (เปลี่ยน period_id → assignment_id)
 exports.getMyProgress = async (req, res, next) => {
   try {
     const evaluateeId = req.user.id;
-    const { period_id } = req.query;
+    const { assignment_id } = req.query;
     
-    if (!period_id) {
-      return res.status(400).json({ success: false, message: 'period_id required' });
+    if (!assignment_id) {
+      return res.status(400).json({ success: false, message: 'assignment_id required' });
     }
     
     const results = await db('results as er')
@@ -254,7 +255,7 @@ exports.getMyProgress = async (req, res, next) => {
       .leftJoin('indicators as i', 'er.indicator_id', 'i.id')
       .leftJoin('topics as t', 'i.topic_id', 't.id')
       .where('er.evaluatee_id', evaluateeId)
-      .where('er.period_id', period_id)
+      .where('er.assignment_id', assignment_id)
       .orderBy('t.id', 'asc')
       .orderBy('i.id', 'asc');
     
@@ -269,44 +270,25 @@ exports.getMyProgress = async (req, res, next) => {
 
 
 
-// POST /api/results/init-for-period
-// สร้าง evaluation_results ให้ evaluatee ทุกคนในรอบประเมินที่กำหนด
-exports.initResultsForPeriod = async (req, res, next) => {
+// POST /api/results/init-for-assignment
+// สร้าง evaluation_results ให้ evaluatee ใน assignment ที่กำหนด (เปลี่ยน period_id → assignment_id)
+exports.initResultsForAssignment = async (req, res, next) => {
   try {
-    const { period_id } = req.body;
+    const { assignment_id, evaluatee_id } = req.body;
     
-    if (!period_id) {
-      return res.status(400).json({ success: false, message: 'period_id required' });
+    if (!assignment_id) {
+      return res.status(400).json({ success: false, message: 'assignment_id required' });
+    }
+    
+    if (!evaluatee_id) {
+      return res.status(400).json({ success: false, message: 'evaluatee_id required' });
     }
 
-    const result = await repo.initResultsForPeriod(period_id);
+    const result = await repo.initResultsForAssignment(assignment_id, evaluatee_id);
 
     res.json({ 
       success: true, 
       message: `Created ${result.created} evaluation records`,
-      data: result
-    });
-  } catch (e) {
-    next(e);
-  }
-};
-
-// POST /api/results/init-for-me
-// สร้าง evaluation_results ให้ตัวเองในรอบประเมินที่ active
-exports.initResultsForMe = async (req, res, next) => {
-  try {
-    const evaluateeId = req.user.id;
-    const { period_id } = req.body;
-
-    if (!period_id) {
-      return res.status(400).json({ success: false, message: 'period_id required' });
-    }
-
-    const result = await repo.initResultsForEvaluatee(evaluateeId, period_id);
-
-    res.json({
-      success: true,
-      message: `Created ${result.created} records`,
       data: result
     });
   } catch (e) {

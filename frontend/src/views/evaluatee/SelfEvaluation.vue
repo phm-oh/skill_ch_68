@@ -5,26 +5,27 @@
     </v-btn>
     <h1 class="text-h4 mb-4">ประเมินตนเอง</h1>
 
-    <v-alert v-if="availablePeriods.length === 0 && !loading" type="info" variant="tonal">
-      ไม่มีรอบการประเมินที่ได้รับมอบหมาย
+    <v-alert v-if="availableAssignments.length === 0 && !loading" type="info" variant="tonal">
+      ไม่มีการมอบหมายงานประเมินที่ได้รับ
     </v-alert>
 
-    <template v-else-if="availablePeriods.length > 0">
+    <template v-else-if="availableAssignments.length > 0">
       <v-card class="mb-4">
         <v-card-text>
           <v-select
-            v-model="selectedPeriodId"
-            :items="availablePeriods"
-            item-title="name_th"
+            v-model="selectedAssignmentId"
+            :items="availableAssignments"
+            item-title="evaluator_name"
             item-value="id"
-            label="เลือกรอบการประเมิน"
+            label="เลือกการมอบหมายงาน"
             variant="outlined"
             density="comfortable"
-            @update:modelValue="onPeriodChange"
+            @update:modelValue="onAssignmentChange"
           >
             <template v-slot:item="{ props, item }">
               <v-list-item v-bind="props">
                 <template v-slot:subtitle>
+                  กรรมการ: {{ item.raw.evaluator_name || '-' }} | 
                   {{ formatDate(item.raw.start_date) }} - {{ formatDate(item.raw.end_date) }}
                 </template>
               </v-list-item>
@@ -32,7 +33,7 @@
           </v-select>
         </v-card-text>
       </v-card>
-      <v-row v-if="!loading && selectedPeriodId">
+      <v-row v-if="!loading && selectedAssignmentId">
         <v-col cols="12" md="8">
           <v-alert v-if="topics.length === 0" type="warning" variant="tonal" class="mb-4">
             ไม่มีหัวข้อการประเมินในรอบนี้
@@ -98,8 +99,8 @@ import BaseDialog from '@/components/base/BaseDialog.vue';
 import { formatDate, calculateScore, calculateTopicScore, calculateTotalScore } from '@/utils/helpers';
 
 const notificationStore = useNotificationStore();
-const availablePeriods = ref([]);
-const selectedPeriodId = ref(null);
+const availableAssignments = ref([]);
+const selectedAssignmentId = ref(null);
 const topics = ref([]);
 const loading = ref(false);
 const saving = ref(false);
@@ -138,31 +139,17 @@ const totalScore = computed(() => calculateTotalScore(topics.value));
 const fetchData = async () => {
   loading.value = true;
   try {
-    // ดึง assignments ของ evaluatee (รวม period info)
+    // ดึง assignments ของ evaluatee (เปลี่ยนจาก periods เป็น assignments โดยตรง)
     const assignmentsRes = await assignmentService.getMine();
     const assignments = assignmentsRes.data.items || assignmentsRes.data.data || [];
 
-    // แปลง assignments เป็น periods (distinct by period_id)
-    const periodMap = new Map();
-    for (const assignment of assignments) {
-      if (!periodMap.has(assignment.period_id)) {
-        periodMap.set(assignment.period_id, {
-          id: assignment.period_id,
-          name_th: assignment.period_name,
-          name: assignment.period_name,
-          start_date: assignment.start_date,
-          end_date: assignment.end_date,
-          is_active: assignment.is_active
-        });
-      }
-    }
+    // กรองเฉพาะที่ active
+    availableAssignments.value = assignments.filter(a => a.is_active === 1 || a.is_active === true);
 
-    availablePeriods.value = Array.from(periodMap.values());
-
-    // เลือกรอบแรกอัตโนมัติถ้ามี
-    if (availablePeriods.value.length > 0) {
-      selectedPeriodId.value = availablePeriods.value[0].id;
-      await loadPeriodData(selectedPeriodId.value);
+    // เลือก assignment แรกอัตโนมัติถ้ามี
+    if (availableAssignments.value.length > 0) {
+      selectedAssignmentId.value = availableAssignments.value[0].id;
+      await loadAssignmentData(selectedAssignmentId.value);
     }
   } catch (error) {
     console.error('[SelfEvaluation] Error loading data:', error);
@@ -172,26 +159,26 @@ const fetchData = async () => {
   }
 };
 
-const onPeriodChange = async (periodId) => {
-  if (!periodId) return;
+const onAssignmentChange = async (assignmentId) => {
+  if (!assignmentId) return;
   loading.value = true;
   try {
-    await loadPeriodData(periodId);
+    await loadAssignmentData(assignmentId);
   } catch (error) {
-    console.error('[SelfEvaluation] Error loading period data:', error);
+    console.error('[SelfEvaluation] Error loading assignment data:', error);
     notificationStore.error('ไม่สามารถโหลดข้อมูลได้');
   } finally {
     loading.value = false;
   }
 };
 
-const loadPeriodData = async (periodId) => {
-  // ดึง topics ตาม period_id จาก backend (ผ่าน period_topics table)
-  const topicsRes = await topicService.getAll(periodId);
-  const periodTopics = topicsRes.data.items || topicsRes.data.data || [];
+const loadAssignmentData = async (assignmentId) => {
+  // ดึง topics ทั้งหมด (ลบ period_id parameter ออกเพราะไม่มี periods แล้ว)
+  const topicsRes = await topicService.getAll();
+  const allTopics = topicsRes.data.items || topicsRes.data.data || [];
 
   // ดึง indicators สำหรับแต่ละ topic
-  for (const topic of periodTopics) {
+  for (const topic of allTopics) {
     const indicatorsRes = await topicService.getIndicatorsByTopic(topic.id);
     const indicators = indicatorsRes.data.items || indicatorsRes.data.data || [];
     topic.indicators = indicators.map(ind => ({
@@ -199,13 +186,13 @@ const loadPeriodData = async (periodId) => {
     }));
   }
 
-  topics.value = periodTopics;
-  await loadSavedResults(periodId);
+  topics.value = allTopics;
+  await loadSavedResults(assignmentId);
 };
 
-const loadSavedResults = async (periodId) => {
+const loadSavedResults = async (assignmentId) => {
   try {
-    const res = await evaluationService.getMyResults(periodId);
+    const res = await evaluationService.getMyResults(assignmentId);
     const savedResults = res.data.items || res.data.data || [];
     topics.value.forEach(topic => {
       topic.indicators.forEach(indicator => {
@@ -228,15 +215,15 @@ const handleSubmit = async () => {
 };
 
 const saveResults = async (isSubmit) => {
-  if (!selectedPeriodId.value) {
-    notificationStore.error('กรุณาเลือกรอบการประเมิน');
+  if (!selectedAssignmentId.value) {
+    notificationStore.error('กรุณาเลือกการมอบหมายงาน');
     return;
   }
 
   saving.value = true;
   try {
     const data = {
-      period_id: selectedPeriodId.value,
+      assignment_id: selectedAssignmentId.value,
       is_submitted: isSubmit,
       items: []
     };

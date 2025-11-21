@@ -5,8 +5,8 @@ export default {
     const formData = new FormData();
     formData.append('file', file);
 
-    // Add metadata if provided
-    if (metadata.period_id) formData.append('period_id', metadata.period_id);
+    // Add metadata if provided (เปลี่ยน period_id → assignment_id)
+    if (metadata.assignment_id) formData.append('assignment_id', metadata.assignment_id);
     if (metadata.indicator_id) formData.append('indicator_id', metadata.indicator_id);
     if (metadata.evidence_type_id) formData.append('evidence_type_id', metadata.evidence_type_id);
 

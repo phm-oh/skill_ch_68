@@ -72,7 +72,7 @@ const stats = computed(() => {
   assignments.value.forEach(assignment => {
     // Get all evaluation results for this assignment
     const results = evaluations.value.filter(
-      e => e.evaluatee_id === assignment.evaluatee_id && e.period_id === assignment.period_id
+      e => e.evaluatee_id === assignment.evaluatee_id && e.assignment_id === assignment.id
     );
 
     if (results.length === 0) {
@@ -117,7 +117,7 @@ const fetchData = async () => {
 
     // Fetch evaluations for each assignment
     const evaluationPromises = assignments.value.map(assignment =>
-      evaluationService.getByEvaluatee(assignment.evaluatee_id, assignment.period_id)
+      evaluationService.getByEvaluatee(assignment.evaluatee_id, assignment.id)
         .then(res => res.data.items || res.data.data || [])
         .catch(() => [])
     );

@@ -7,10 +7,10 @@ const auth = require('../middlewares/auth');
 // ทุก route ต้อง login
 router.use(auth());
 
-// Routes (เรียงตาม path ที่เฉพาะเจาะจงก่อน)
-router.get('/evaluatee/:evaluateeId/period/:periodId', ctrl.getByEvaluateeAndPeriod);
+// Routes (เรียงตาม path ที่เฉพาะเจาะจงก่อน, เปลี่ยน period → assignment)
+router.get('/evaluatee/:evaluateeId/assignment/:assignmentId', ctrl.getByEvaluateeAndAssignment);
 router.get('/evaluator/:evaluatorId', ctrl.getByEvaluator);
-router.get('/period/:periodId', ctrl.getByPeriod);
+router.get('/assignment/:assignmentId', ctrl.getByAssignment);
 router.get('/', ctrl.list);
 router.get('/:id', ctrl.get);
 router.post('/', ctrl.create);

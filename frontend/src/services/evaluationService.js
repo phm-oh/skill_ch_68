@@ -1,15 +1,15 @@
 import api from './api';
 
 export default {
-  // Evaluatee APIs
-  getMyResults: (periodId) => api.get(`/results/me/${periodId}`),
+  // Evaluatee APIs (เปลี่ยน periodId → assignmentId)
+  getMyResults: (assignmentId) => api.get(`/results/me/${assignmentId}`),
   saveSelfEvaluation: (data) => api.post('/results/self', data),
   saveSelfBulk: (data) => api.post('/results/self/bulk', data),
-  initResultsForMe: () => api.post('/results/init-for-me'),
-  getSummary: (evaluateeId, periodId) => api.get(`/results/summary/${evaluateeId}/${periodId}`),
+  initResultsForAssignment: (data) => api.post('/results/init-for-assignment', data),
+  getSummary: (evaluateeId, assignmentId) => api.get(`/results/summary/${evaluateeId}/${assignmentId}`),
 
-  // Committee APIs
-  getByEvaluatee: (evaluateeId, periodId) => api.get(`/results/evaluatee/${evaluateeId}/${periodId}`),
+  // Committee APIs (เปลี่ยน periodId → assignmentId)
+  getByEvaluatee: (evaluateeId, assignmentId) => api.get(`/results/evaluatee/${evaluateeId}/${assignmentId}`),
   evaluate: (data) => api.post('/results/evaluate', data),
   evaluateBulk: (data) => api.post('/results/evaluate/bulk', data),
 

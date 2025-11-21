@@ -85,7 +85,7 @@ const props = defineProps({
     default: 'application/pdf,image/jpeg,image/png'
   },
   maxSize: { type: Number, default: 5 * 1024 * 1024 },
-  periodId: { type: Number, required: false },
+  assignmentId: { type: Number, required: false },
   indicatorId: { type: Number, required: false },
   evidenceTypeId: { type: Number, default: 1 }
 });
@@ -117,7 +117,7 @@ const uploadFiles = async () => {
 
   try {
     const metadata = {
-      period_id: props.periodId,
+      assignment_id: props.assignmentId,
       indicator_id: props.indicatorId,
       evidence_type_id: props.evidenceTypeId
     };

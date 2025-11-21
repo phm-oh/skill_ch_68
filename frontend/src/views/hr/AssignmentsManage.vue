@@ -17,27 +17,39 @@
       </div>
     </div>
 
-    <v-select v-model="selectedPeriodId" :items="periods" item-title="name_th" item-value="id"
-      label="เลือกรอบการประเมิน" variant="outlined" density="compact" class="mb-4"
-      @update:model-value="fetchAssignments"></v-select>
-
-    <BaseTable :headers="headers" :items="filteredAssignments" :loading="loading">
+    <BaseTable :headers="headers" :items="assignments" :loading="loading">
+      <template #item.start_date="{ item }">{{ formatDate(item.start_date) }}</template>
+      <template #item.end_date="{ item }">{{ formatDate(item.end_date) }}</template>
+      <template #item.is_active="{ item }">
+        <status-chip :status="item.is_active ? 'active' : 'inactive'" />
+      </template>
       <template #item.created_at="{ item }">{{ formatDate(item.created_at) }}</template>
       <template #item.actions="{ item }">
+        <v-btn icon="mdi-pencil" size="small" variant="text" color="primary" @click="openDialog('single', item)"></v-btn>
+        <v-btn :icon="item.is_active ? 'mdi-eye-off' : 'mdi-eye'" size="small" variant="text"
+          :color="item.is_active ? 'warning' : 'success'" @click="toggleActive(item)"></v-btn>
         <v-btn icon="mdi-delete" size="small" variant="text" color="error" @click="confirmDelete(item)"></v-btn>
       </template>
     </BaseTable>
 
     <!-- Single Assignment Dialog -->
-    <BaseDialog v-model="singleDialog" title="มอบหมายงานประเมิน (เดี่ยว)" icon="mdi-account-plus"
-      :loading="saving" @confirm="handleSaveSingle" @cancel="singleDialog = false">
+    <BaseDialog v-model="singleDialog" :title="isEdit ? 'แก้ไขการมอบหมายงาน' : 'มอบหมายงานประเมิน (เดี่ยว)'" icon="mdi-account-plus"
+      :loading="saving" @confirm="handleSaveSingle" @cancel="handleCancelSingle">
       <v-form ref="singleFormRef">
         <v-select v-model="singleForm.evaluator_id" :items="evaluators" item-title="name_th" item-value="id"
           label="เลือกกรรมการผู้ประเมิน" :rules="[v => !!v || 'กรุณาเลือกกรรมการ']"
-          variant="outlined" density="compact" class="mb-3"></v-select>
+          variant="outlined" density="compact" class="mb-3" :readonly="isEdit"></v-select>
         <v-select v-model="singleForm.evaluatee_id" :items="evaluatees" item-title="name_th" item-value="id"
           label="เลือกผู้รับการประเมิน" :rules="[v => !!v || 'กรุณาเลือกผู้รับการประเมิน']"
-          variant="outlined" density="compact"></v-select>
+          variant="outlined" density="compact" class="mb-3" :readonly="isEdit"></v-select>
+        <v-text-field v-model="singleForm.start_date" label="วันที่เริ่มต้น" type="date"
+          :rules="[v => !!v || 'กรุณาเลือกวันที่เริ่มต้น']" variant="outlined" density="compact" class="mb-3"></v-text-field>
+        <v-text-field v-model="singleForm.end_date" label="วันที่สิ้นสุด" type="date"
+          :rules="[
+            v => !!v || 'กรุณาเลือกวันที่สิ้นสุด',
+            v => !singleForm.start_date || v > singleForm.start_date || 'วันที่สิ้นสุดต้องหลังวันที่เริ่มต้น'
+          ]" variant="outlined" density="compact" class="mb-3"></v-text-field>
+        <v-switch v-model="singleForm.is_active" label="เปิดใช้งาน" color="success" class="mb-3"></v-switch>
       </v-form>
     </BaseDialog>
 
@@ -50,7 +62,15 @@
           variant="outlined" density="compact" multiple chips closable-chips class="mb-3"></v-select>
         <v-select v-model="bulkForm.evaluatee_ids" :items="evaluatees" item-title="name_th" item-value="id"
           label="เลือกผู้รับการประเมิน (หลายคน)" :rules="[v => v?.length > 0 || 'กรุณาเลือกอย่างน้อย 1 คน']"
-          variant="outlined" density="compact" multiple chips closable-chips></v-select>
+          variant="outlined" density="compact" multiple chips closable-chips class="mb-3"></v-select>
+        <v-text-field v-model="bulkForm.start_date" label="วันที่เริ่มต้น" type="date"
+          :rules="[v => !!v || 'กรุณาเลือกวันที่เริ่มต้น']" variant="outlined" density="compact" class="mb-3"></v-text-field>
+        <v-text-field v-model="bulkForm.end_date" label="วันที่สิ้นสุด" type="date"
+          :rules="[
+            v => !!v || 'กรุณาเลือกวันที่สิ้นสุด',
+            v => !bulkForm.start_date || v > bulkForm.start_date || 'วันที่สิ้นสุดต้องหลังวันที่เริ่มต้น'
+          ]" variant="outlined" density="compact" class="mb-3"></v-text-field>
+        <v-switch v-model="bulkForm.is_active" label="เปิดใช้งาน" color="success"></v-switch>
       </v-form>
     </BaseDialog>
 
@@ -70,7 +90,7 @@ import { ref, computed, onMounted } from 'vue';
 import { useNotificationStore } from '@/stores/notification';
 import BaseTable from '@/components/base/BaseTable.vue';
 import BaseDialog from '@/components/base/BaseDialog.vue';
-import periodService from '@/services/periodService';
+import StatusChip from '@/components/base/StatusChip.vue';
 import assignmentService from '@/services/assignmentService';
 import userService from '@/services/userService';
 import { formatDate } from '@/utils/helpers';
@@ -80,32 +100,32 @@ const loading = ref(false), saving = ref(false), deleting = ref(false);
 const singleDialog = ref(false), bulkDialog = ref(false), deleteDialog = ref(false);
 const singleFormRef = ref(null), bulkFormRef = ref(null);
 
-const periods = ref([]), assignments = ref([]), evaluators = ref([]), evaluatees = ref([]);
-const selectedPeriodId = ref(null), deleteItem = ref(null);
-const singleForm = ref({ period_id: null, evaluator_id: null, evaluatee_id: null });
-const bulkForm = ref({ period_id: null, evaluator_ids: [], evaluatee_ids: [] });
+const assignments = ref([]), evaluators = ref([]), evaluatees = ref([]);
+const deleteItem = ref(null);
+const singleForm = ref({ 
+  evaluator_id: null, 
+  evaluatee_id: null, 
+  start_date: null, 
+  end_date: null, 
+  is_active: true 
+});
+const bulkForm = ref({ 
+  evaluator_ids: [], 
+  evaluatee_ids: [], 
+  start_date: null, 
+  end_date: null, 
+  is_active: true 
+});
 
 const headers = [
-  { title: 'รอบการประเมิน', key: 'period_name', sortable: true },
   { title: 'กรรมการผู้ประเมิน', key: 'evaluator_name', sortable: true },
   { title: 'ผู้รับการประเมิน', key: 'evaluatee_name', sortable: true },
+  { title: 'วันที่เริ่มต้น', key: 'start_date', sortable: true },
+  { title: 'วันที่สิ้นสุด', key: 'end_date', sortable: true },
+  { title: 'สถานะ', key: 'is_active', sortable: true },
   { title: 'วันที่สร้าง', key: 'created_at', sortable: true },
   { title: 'จัดการ', key: 'actions', sortable: false, align: 'center' }
 ];
-
-const filteredAssignments = computed(() =>
-  selectedPeriodId.value ? assignments.value.filter(a => a.period_id === selectedPeriodId.value) : assignments.value
-);
-
-const fetchPeriods = async () => {
-  try {
-    const response = await periodService.getAll();
-    periods.value = response.data.items || response.data.data || [];
-    if (periods.value.length > 0) selectedPeriodId.value = periods.value[0].id;
-  } catch (error) {
-    notificationStore.error('ไม่สามารถโหลดรอบการประเมินได้');
-  }
-};
 
 const fetchAssignments = async () => {
   loading.value = true;
@@ -132,16 +152,55 @@ const fetchUsers = async () => {
   }
 };
 
-const openDialog = (type) => {
-  if (!selectedPeriodId.value) {
-    notificationStore.warning('กรุณาเลือกรอบการประเมินก่อน');
-    return;
-  }
+const isEdit = ref(false);
+const editingId = ref(null);
+
+const openDialog = (type, item = null) => {
   if (type === 'single') {
-    singleForm.value = { period_id: selectedPeriodId.value, evaluator_id: null, evaluatee_id: null };
+    if (item) {
+      // Edit mode
+      isEdit.value = true;
+      editingId.value = item.id;
+      // Format dates for date input (YYYY-MM-DD)
+      const formatDateForInput = (dateStr) => {
+        if (!dateStr) return null;
+        const date = new Date(dateStr);
+        return date.toISOString().split('T')[0];
+      };
+      singleForm.value = {
+        evaluator_id: item.evaluator_id,
+        evaluatee_id: item.evaluatee_id,
+        start_date: formatDateForInput(item.start_date),
+        end_date: formatDateForInput(item.end_date),
+        is_active: item.is_active === 1 || item.is_active === true
+      };
+      console.log('[AssignmentsManage] Opening edit dialog:', {
+        isEdit: isEdit.value,
+        editingId: editingId.value,
+        formData: singleForm.value
+      });
+    } else {
+      // Create mode
+      isEdit.value = false;
+      editingId.value = null;
+      singleForm.value = {
+        evaluator_id: null,
+        evaluatee_id: null,
+        start_date: null,
+        end_date: null,
+        is_active: true
+      };
+      console.log('[AssignmentsManage] Opening create dialog');
+    }
     singleDialog.value = true;
   } else {
-    bulkForm.value = { period_id: selectedPeriodId.value, evaluator_ids: [], evaluatee_ids: [] };
+    bulkForm.value = {
+      evaluator_ids: [],
+      evaluatee_ids: [],
+      start_date: null,
+      end_date: null,
+      is_active: true
+    };
     bulkDialog.value = true;
   }
 };
@@ -151,11 +210,34 @@ const handleSaveSingle = async () => {
   if (!valid) return;
   saving.value = true;
   try {
-    await assignmentService.create(singleForm.value);
-    notificationStore.success('มอบหมายงานสำเร็จ');
+    // Debug: ตรวจสอบค่า isEdit และ editingId
+    console.log('[AssignmentsManage] handleSaveSingle:', {
+      isEdit: isEdit.value,
+      editingId: editingId.value,
+      formData: singleForm.value
+    });
+
+    // ตรวจสอบว่าเป็น edit mode หรือไม่ (ตรวจสอบทั้ง isEdit และ editingId)
+    const isEditMode = isEdit.value && editingId.value;
+    
+    if (isEditMode) {
+      // Edit mode: ใช้ PUT /api/assignments/:id
+      console.log('[AssignmentsManage] Updating assignment:', editingId.value);
+      await assignmentService.update(editingId.value, singleForm.value);
+      notificationStore.success('แก้ไขการมอบหมายสำเร็จ');
+    } else {
+      // Create mode: ใช้ POST /api/assignments
+      console.log('[AssignmentsManage] Creating new assignment');
+      await assignmentService.create(singleForm.value);
+      notificationStore.success('มอบหมายงานสำเร็จ');
+    }
     singleDialog.value = false;
+    // Reset form state
+    isEdit.value = false;
+    editingId.value = null;
     await fetchAssignments();
   } catch (error) {
+    console.error('[AssignmentsManage] Save error:', error);
     notificationStore.error(error.response?.data?.message || 'เกิดข้อผิดพลาด');
   } finally {
     saving.value = false;
@@ -167,14 +249,16 @@ const handleSaveBulk = async () => {
   if (!valid) return;
   saving.value = true;
   try {
-    // แปลง evaluator_ids และ evaluatee_ids เป็น items array
+    // แปลง evaluator_ids และ evaluatee_ids เป็น items array (เพิ่ม start_date, end_date, is_active)
     const items = [];
     for (const evaluatorId of bulkForm.value.evaluator_ids) {
       for (const evaluateeId of bulkForm.value.evaluatee_ids) {
         items.push({
           evaluator_id: evaluatorId,
           evaluatee_id: evaluateeId,
-          period_id: bulkForm.value.period_id
+          start_date: bulkForm.value.start_date,
+          end_date: bulkForm.value.end_date,
+          is_active: bulkForm.value.is_active ? 1 : 0
         });
       }
     }
@@ -200,6 +284,33 @@ const handleSaveBulk = async () => {
   }
 };
 
+const toggleActive = async (item) => {
+  saving.value = true;
+  try {
+    await assignmentService.update(item.id, { is_active: !item.is_active });
+    notificationStore.success('เปลี่ยนสถานะสำเร็จ');
+    await fetchAssignments();
+  } catch (error) {
+    notificationStore.error('ไม่สามารถเปลี่ยนสถานะได้');
+  } finally {
+    saving.value = false;
+  }
+};
+
+const handleCancelSingle = () => {
+  singleDialog.value = false;
+  // Reset form state when canceling
+  isEdit.value = false;
+  editingId.value = null;
+  singleForm.value = {
+    evaluator_id: null,
+    evaluatee_id: null,
+    start_date: null,
+    end_date: null,
+    is_active: true
+  };
+};
+
 const confirmDelete = (item) => {
   deleteItem.value = item;
   deleteDialog.value = true;
@@ -220,7 +331,7 @@ const handleDelete = async () => {
 };
 
 onMounted(async () => {
-  await Promise.all([fetchPeriods(), fetchUsers()]);
+  await fetchUsers();
   await fetchAssignments();
 });
 </script>

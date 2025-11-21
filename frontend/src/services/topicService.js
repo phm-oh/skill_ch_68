@@ -1,11 +1,8 @@
 import api from './api';
 
 export default {
-  // Topics
-  getAll: (periodId = null) => {
-    const params = periodId ? { period_id: periodId } : {};
-    return api.get('/topics', { params });
-  },
+  // Topics (ลบ periodId parameter ออก เพราะไม่มี periods แล้ว)
+  getAll: () => api.get('/topics'),
   getActive: () => api.get('/topics/active'),
   getById: (id) => api.get(`/topics/${id}`),
   create: (data) => api.post('/topics', data),

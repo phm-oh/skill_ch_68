@@ -34,6 +34,9 @@ router.post('/bulk', ctrl.createBulk);
 // POST /api/assignments - สร้างใหม่ (admin only)
 router.post('/', ctrl.create);
 
+// PUT /api/assignments/:id - แก้ไข (admin only)
+router.put('/:id', ctrl.update);
+
 // DELETE /api/assignments/:id - ลบ (admin only)
 router.delete('/:id', ctrl.remove);
 

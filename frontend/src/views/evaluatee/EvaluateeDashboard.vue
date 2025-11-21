@@ -11,17 +11,24 @@
       </v-col>
     </v-row>
 
-    <v-row v-if="activePeriods.length > 0">
-      <v-col cols="12" v-for="period in activePeriods" :key="period.id">
-        <base-card :title="`รอบการประเมิน: ${period.name_th || period.name}`" icon="mdi-calendar-clock">
+    <v-row v-if="activeAssignments.length > 0">
+      <v-col cols="12" v-for="assignment in activeAssignments" :key="assignment.id">
+        <base-card :title="`การประเมิน: ${assignment.evaluator_name || 'กรรมการ'}`" icon="mdi-calendar-clock">
           <v-row>
             <v-col cols="12" md="8">
-              <div class="d-flex gap-4 align-center">
-                <div><v-icon icon="mdi-calendar-start" size="small"></v-icon> เริ่ม: {{ formatDate(period.start_date) }}</div>
-                <div><v-icon icon="mdi-calendar-end" size="small"></v-icon> สิ้นสุด: {{ formatDate(period.end_date) }}</div>
+              <div class="d-flex gap-4 align-center flex-wrap">
+                <div><v-icon icon="mdi-account-star" size="small"></v-icon> กรรมการ: {{ assignment.evaluator_name || '-' }}</div>
+                <div><v-icon icon="mdi-calendar-start" size="small"></v-icon> เริ่ม: {{ formatDate(assignment.start_date) }}</div>
+                <div><v-icon icon="mdi-calendar-end" size="small"></v-icon> สิ้นสุด: {{ formatDate(assignment.end_date) }}</div>
                 <div>
+                  <v-chip :color="assignment.is_active ? 'success' : 'error'" variant="flat">
+                    <v-icon :icon="assignment.is_active ? 'mdi-eye' : 'mdi-eye-off'" start></v-icon>
+                    {{ assignment.is_active ? 'เปิดใช้งาน' : 'ปิดใช้งาน' }}
+                  </v-chip>
+                </div>
+                <div v-if="assignment.is_active">
                   <v-chip color="warning" variant="flat">
-                    <v-icon icon="mdi-clock-alert" start></v-icon>เหลือเวลาอีก {{ getDaysRemaining(period.end_date) }} วัน
+                    <v-icon icon="mdi-clock-alert" start></v-icon>เหลือเวลาอีก {{ getDaysRemaining(assignment.end_date) }} วัน
                   </v-chip>
                 </div>
               </div>
@@ -29,7 +36,7 @@
             <v-col cols="12" md="4" class="d-flex align-center justify-center">
               <div class="text-center">
                 <div class="text-subtitle-2 mb-2">สถานะการประเมิน</div>
-                <status-chip :status="getEvaluationStatus(period.id)" size="large" />
+                <status-chip :status="getEvaluationStatus(assignment.id)" size="large" />
               </div>
             </v-col>
           </v-row>
@@ -53,11 +60,11 @@
       </v-col>
     </v-row>
 
-    <v-row v-if="!loading && activePeriods.length === 0">
+    <v-row v-if="!loading && activeAssignments.length === 0">
       <v-col cols="12">
         <v-alert type="info" variant="tonal" prominent>
-          <v-alert-title>ไม่มีรอบการประเมินที่เปิดอยู่</v-alert-title>
-          กรุณารอจนกว่าฝ่าย HR จะเปิดรอบการประเมิน
+          <v-alert-title>ยังไม่มีการมอบหมายงานประเมิน</v-alert-title>
+          กรุณารอจนกว่าฝ่าย HR จะมอบหมายงานประเมินให้คุณ
         </v-alert>
       </v-col>
     </v-row>
@@ -82,7 +89,7 @@ const authStore = useAuthStore();
 const notificationStore = useNotificationStore();
 
 const loading = ref(false);
-const activePeriods = ref([]);
+const activeAssignments = ref([]);
 const evaluationData = ref({});
 
 const quickActions = [
@@ -94,34 +101,21 @@ const quickActions = [
 const fetchData = async () => {
   loading.value = true;
   try {
-    // ดึง assignments ของ evaluatee (รวม period info)
+    // ดึง assignments ของ evaluatee (เปลี่ยนจาก periods เป็น assignments โดยตรง)
     const assignmentsRes = await assignmentService.getMine();
     const assignments = assignmentsRes.data.items || assignmentsRes.data.data || [];
 
-    // แปลง assignments เป็น periods (distinct by period_id)
-    const periodMap = new Map();
-    for (const assignment of assignments) {
-      if (!periodMap.has(assignment.period_id)) {
-        periodMap.set(assignment.period_id, {
-          id: assignment.period_id,
-          name_th: assignment.period_name,
-          name: assignment.period_name,
-          start_date: assignment.start_date,
-          end_date: assignment.end_date,
-          is_active: assignment.is_active
-        });
-      }
-    }
+    // กรองเฉพาะที่ active และแสดงทั้งหมด (หรือจะแสดงเฉพาะ active ก็ได้)
+    activeAssignments.value = assignments.filter(a => a.is_active === 1 || a.is_active === true);
 
-    activePeriods.value = Array.from(periodMap.values());
-
-    for (const period of activePeriods.value) {
+    // ดึงข้อมูลการประเมินสำหรับแต่ละ assignment
+    for (const assignment of activeAssignments.value) {
       try {
-        const evalRes = await evaluationService.getMyResults(period.id);
+        const evalRes = await evaluationService.getMyResults(assignment.id);
         const results = evalRes.data.items || evalRes.data.data || [];
-        evaluationData.value[period.id] = { status: determineStatus(results), results };
+        evaluationData.value[assignment.id] = { status: determineStatus(results), results };
       } catch (err) {
-        console.error(`Error fetching data for period ${period.id}:`, err);
+        console.error(`Error fetching data for assignment ${assignment.id}:`, err);
       }
     }
   } catch (error) {
@@ -142,7 +136,7 @@ const determineStatus = (results) => {
   return 'draft';
 };
 
-const getEvaluationStatus = (periodId) => evaluationData.value[periodId]?.status || 'draft';
+const getEvaluationStatus = (assignmentId) => evaluationData.value[assignmentId]?.status || 'draft';
 
 const handleLogout = async () => { await authStore.logout(); };
 

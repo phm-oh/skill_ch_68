@@ -7,7 +7,7 @@
         </v-btn>
         <div class="d-flex justify-space-between align-center mb-4">
           <h1 class="text-h4">รายงานการประเมิน</h1>
-          <v-btn color="primary" @click="exportPDF" :disabled="!selectedPeriod">
+          <v-btn color="primary" @click="exportPDF" :disabled="!selectedAssignment">
             <v-icon icon="mdi-printer" start></v-icon>Export PDF
           </v-btn>
         </div>
@@ -15,13 +15,13 @@
     </v-row>
     <v-row>
       <v-col cols="12" md="6">
-        <v-select v-model="selectedPeriod" :items="periods" item-title="name_th"
+        <v-select v-model="selectedAssignment" :items="assignments" :item-title="(item) => formatAssignmentInfo(item)"
           item-value="id" label="เลือกรอบการประเมิน" variant="outlined"
           density="comfortable" prepend-inner-icon="mdi-calendar"
           @update:model-value="fetchReportData"></v-select>
       </v-col>
     </v-row>
-    <v-row v-if="selectedPeriod">
+    <v-row v-if="selectedAssignment">
       <v-col cols="12" md="3">
         <v-card color="primary">
           <v-card-text class="text-white">
@@ -55,7 +55,7 @@
         </v-card>
       </v-col>
     </v-row>
-    <v-row v-if="selectedPeriod" class="mt-4">
+    <v-row v-if="selectedAssignment" class="mt-4">
       <v-col cols="12">
         <base-card title="รายงานรายบุคคล" icon="mdi-table">
           <base-table :headers="headers" :items="reportItems" :loading="loading">
@@ -92,7 +92,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue';
 import { useNotificationStore } from '@/stores/notification';
-import periodService from '@/services/periodService';
+import assignmentService from '@/services/assignmentService';
 import evaluationService from '@/services/evaluationService';
 import signatureService from '@/services/signatureService';
 import BaseCard from '@/components/base/BaseCard.vue';
@@ -103,8 +103,8 @@ import { formatDateTime } from '@/utils/helpers';
 
 const notificationStore = useNotificationStore();
 const loading = ref(false);
-const periods = ref([]);
-const selectedPeriod = ref(null);
+const assignments = ref([]);
+const selectedAssignment = ref(null);
 const reportData = ref([]);
 const signatures = ref([]);
 
@@ -115,10 +115,18 @@ const headers = [
   { title: 'ลงนามเมื่อ', key: 'signed_at', sortable: true, align: 'center' }
 ];
 
+// Format assignment info for display
+const formatAssignmentInfo = (assignment) => {
+  if (assignment.start_date && assignment.end_date) {
+    return `${new Date(assignment.start_date).toLocaleDateString('th-TH')} - ${new Date(assignment.end_date).toLocaleDateString('th-TH')}`;
+  }
+  return 'ไม่ระบุช่วงเวลา';
+};
+
 const reportItems = computed(() => reportData.value.map(item => {
   // Find signature for this evaluatee
   const signature = signatures.value.find(s =>
-    s.evaluatee_id === item.evaluatee_id && s.period_id === selectedPeriod.value
+    s.evaluatee_id === item.evaluatee_id && s.assignment_id === selectedAssignment.value
   );
 
   return {
@@ -147,73 +155,96 @@ const getScoreColor = (score) => {
 };
 
 const exportPDF = () => {
-  if (!selectedPeriod.value) {
+  if (!selectedAssignment.value) {
     notificationStore.error('กรุณาเลือกรอบการประเมินก่อน');
     return;
   }
   window.print();
 };
 
-const fetchPeriods = async () => {
+const fetchAssignments = async () => {
   try {
-    const response = await periodService.getAll();
-    periods.value = response.data.items || response.data.data || [];
+    const response = await assignmentService.getAll();
+    const allAssignments = response.data.items || response.data.data || [];
+    // Filter เฉพาะ assignments ที่ is_active = 1
+    assignments.value = allAssignments.filter(a => a.is_active === 1);
   } catch (error) {
     notificationStore.error('ไม่สามารถโหลดรอบการประเมินได้');
   }
 };
 
 const fetchReportData = async () => {
-  if (!selectedPeriod.value) return;
+  if (!selectedAssignment.value) return;
   loading.value = true;
   try {
-    // Fetch all assignments for this period to get evaluatee list
+    // Fetch all assignments for this assignment to get evaluatee list
     const assignmentsRes = await evaluationService.getAll();
     const allResults = assignmentsRes.data.items || assignmentsRes.data.data || [];
 
-    // Filter by period and group by evaluatee
+    // Filter by assignment and group by evaluatee
     const evaluateeIds = [...new Set(
       allResults
-        .filter(r => r.period_id === selectedPeriod.value)
+        .filter(r => r.assignment_id === selectedAssignment.value)
         .map(r => r.evaluatee_id)
     )];
 
     console.log('[ReportsView] Evaluatee IDs:', evaluateeIds);
 
     // Fetch summary for each evaluatee
-    const summaryPromises = evaluateeIds.map(evaluateeId =>
-      evaluationService.getSummary(evaluateeId, selectedPeriod.value)
+    const summaryPromises = evaluateeIds.map(evaluateeId => {
+      // แปลงเป็น number เพื่อให้แน่ใจว่า API รับ parameter ถูกต้อง
+      const evaluateeIdNum = parseInt(evaluateeId);
+      const assignmentIdNum = parseInt(selectedAssignment.value);
+      
+      console.log(`[ReportsView] Fetching summary for evaluatee ${evaluateeIdNum}, assignment ${assignmentIdNum}`);
+      
+      return evaluationService.getSummary(evaluateeIdNum, assignmentIdNum)
         .then(res => {
-          // คะแนนที่ได้จาก calculateFinal คือคะแนนรวมที่คำนวณแล้ว (ไม่ต้องหาร 100)
-          // แต่ถ้าคะแนนเกิน 100 อาจต้อง normalize
-          let totalScore = res.data.data?.total_score || res.data.data?.evaluator_total || 0;
+          // คะแนนที่ได้จาก calculateFinal คือคะแนนรวมที่ normalize เป็น 100 แล้ว
+          // total_score ควรจะอยู่ในช่วง 0-100
+          let totalScore = res.data.data?.total_score ?? res.data.data?.evaluator_total ?? 0;
           
-          // ถ้าคะแนนเกิน 100 อาจเป็นเพราะคำนวณผิด ให้ normalize
-          // แต่ถ้าคะแนนถูกต้องแล้ว (เช่น 18.75) ก็ใช้ตามนั้น
-          // ตรวจสอบจาก total_weight ถ้ามี
-          const totalWeight = res.data.data?.total_weight || 100;
-          if (totalWeight > 0 && totalScore > totalWeight) {
-            // ถ้าคะแนนเกิน weight ให้ normalize
-            totalScore = (totalScore / totalWeight) * 100;
+          // แปลงเป็น number เพื่อให้แน่ใจ
+          totalScore = parseFloat(totalScore) || 0;
+          
+          // Backend จะ normalize คะแนนเป็น 100 แล้ว
+          // ถ้าคะแนนเกิน 100 มาก (เช่น 875.00) แสดงว่ามีปัญหาในการคำนวณ
+          if (totalScore > 1000) {
+            console.warn(`[ReportsView] Invalid score detected: ${totalScore} for evaluatee ${evaluateeIdNum}`);
+            totalScore = 0;
+          } else if (totalScore > 100) {
+            // ถ้าคะแนนเกิน 100 แต่ไม่เกิน 1000 อาจเป็นเพราะ normalize ผิด
+            // ให้ cap ที่ 100
+            console.warn(`[ReportsView] Score exceeds 100: ${totalScore}, capping to 100`);
+            totalScore = 100;
           }
           
+          console.log(`[ReportsView] Summary for ${evaluateeIdNum}:`, {
+            total_score: totalScore,
+            evaluator_total: res.data.data?.evaluator_total,
+            self_total: res.data.data?.self_total,
+            total_weight: res.data.data?.total_weight,
+            raw_data: res.data.data
+          });
+          
           return {
-            evaluatee_id: evaluateeId,
+            evaluatee_id: evaluateeIdNum,
             evaluatee_name: res.data.data?.evaluatee_name || '-',
             total_score: totalScore,
             status: res.data.data?.status || 'draft'
           };
         })
         .catch(err => {
-          console.error(`[ReportsView] Error fetching summary for ${evaluateeId}:`, err);
+          console.error(`[ReportsView] Error fetching summary for ${evaluateeIdNum}:`, err);
+          console.error(`[ReportsView] Error details:`, err.response?.data || err.message);
           return {
-            evaluatee_id: evaluateeId,
+            evaluatee_id: evaluateeIdNum,
             evaluatee_name: '-',
             total_score: 0,
             status: 'draft'
           };
-        })
-    );
+        });
+    });
 
     const summaries = await Promise.all(summaryPromises);
 
@@ -230,7 +261,7 @@ const fetchReportData = async () => {
       if (summary.status === 'draft') {
         const evaluateeResults = allResults.filter(r =>
           r.evaluatee_id === summary.evaluatee_id &&
-          r.period_id === selectedPeriod.value
+          r.assignment_id === selectedAssignment.value
         );
         const anyApproved = evaluateeResults.some(r => r.status === 'approved');
         const anyEvaluated = evaluateeResults.some(r => r.evaluator_score !== null);
@@ -247,13 +278,13 @@ const fetchReportData = async () => {
 
     // Fetch signatures for each evaluatee
     const signaturePromises = evaluateeIds.map(evaluateeId =>
-      signatureService.getByEvaluatee(evaluateeId, selectedPeriod.value)
+      signatureService.getByEvaluatee(evaluateeId, selectedAssignment.value)
         .then(res => {
           const sigs = res.data.items || res.data.data || [];
           return sigs.map(sig => ({
             ...sig,
             evaluatee_id: evaluateeId,
-            period_id: selectedPeriod.value
+            assignment_id: selectedAssignment.value
           }));
         })
         .catch(err => {
@@ -274,7 +305,7 @@ const fetchReportData = async () => {
   }
 };
 
-onMounted(() => { fetchPeriods(); });
+onMounted(() => { fetchAssignments(); });
 </script>
 
 <style scoped>

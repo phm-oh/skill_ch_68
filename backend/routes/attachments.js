@@ -8,19 +8,45 @@ const asgRepo = require("../repositories/assignments.repository");
 const authz = require("../middlewares/auth");
 const upload = require("../middlewares/upload");
 
-// GET /api/periods/active
+// GET /api/assignments/active (เปลี่ยน periods/active → assignments/active)
 router.get(
-  "/periods/active",
+  "/assignments/active",
   authz("evaluatee", "evaluator", "admin"),
   async (req, res) => {
-    const rows = await db("periods")
-      .where({ is_active: 1 })
-      .orderBy("id", "desc");
+    const userId = req.user?.id;
+    const userRole = req.user?.role;
+    
+    let query = db("assignments")
+      .select(
+        "assignments.*",
+        "evaluator.name_th as evaluator_name",
+        "evaluatee.name_th as evaluatee_name"
+      )
+      .leftJoin("users as evaluator", "assignments.evaluator_id", "evaluator.id")
+      .leftJoin("users as evaluatee", "assignments.evaluatee_id", "evaluatee.id")
+      .where("assignments.is_active", 1)
+      .orderBy("assignments.start_date", "desc");
+    
+    // ถ้าเป็น evaluatee ให้แสดงเฉพาะของตัวเอง
+    if (userRole === "evaluatee") {
+      query = query.where("assignments.evaluatee_id", userId);
+    }
+    // ถ้าเป็น evaluator ให้แสดงเฉพาะที่ตัวเองเป็นกรรมการ
+    else if (userRole === "evaluator") {
+      query = query.where("assignments.evaluator_id", userId);
+    }
+    
+    const rows = await query;
     res.json(
       rows.map((r) => ({
         id: r.id,
-        code: r.code,
-        name_th: r.name_th || r.name || r.title,
+        evaluator_id: r.evaluator_id,
+        evaluator_name: r.evaluator_name,
+        evaluatee_id: r.evaluatee_id,
+        evaluatee_name: r.evaluatee_name,
+        start_date: r.start_date,
+        end_date: r.end_date,
+        is_active: r.is_active,
       }))
     );
   }
@@ -59,7 +85,7 @@ router.get(
   }
 );
 
-// POST /api/attachments
+// POST /api/attachments (เปลี่ยน period_id → assignment_id)
 router.post(
   "/attachments",
   authz("evaluatee", "evaluator"),
@@ -67,22 +93,22 @@ router.post(
   async (req, res) => {
     try {
       const {
-        period_id,
+        assignment_id,
         indicator_id,
         evidence_type_id,
         note,
         evaluatee_id: bodyEvaluatee,
       } = req.body;
       
-      if (!period_id || !indicator_id || !evidence_type_id || !req.file) {
+      if (!assignment_id || !indicator_id || !evidence_type_id || !req.file) {
         return res.status(422).json({ message: "Missing required fields" });
       }
 
-      // 1) period active
-      const per = await db("periods")
-        .where({ id: period_id, is_active: 1 })
+      // 1) assignment active
+      const assignment = await db("assignments")
+        .where({ id: assignment_id, is_active: 1 })
         .first();
-      if (!per) return res.status(404).json({ message: "Period not active" });
+      if (!assignment) return res.status(404).json({ message: "Assignment not active" });
 
       // 2) indicator exists
       const ind = await db("indicators")
@@ -104,29 +130,24 @@ router.post(
       let evaluatee_id;
       if (role === "evaluatee") {
         evaluatee_id = userId;
-        const ok = await asgRepo.hasEvaluateeInPeriod({
-          period_id,
-          evaluatee_id,
-        });
-        if (!ok)
+        // ตรวจสอบว่า evaluatee ถูก assign ใน assignment นี้
+        if (assignment.evaluatee_id !== evaluatee_id) {
           return res
             .status(403)
-            .json({ message: "You are not in this period" });
+            .json({ message: "You are not assigned to this assignment" });
+        }
       } else if (role === "evaluator") {
         evaluatee_id = Number(bodyEvaluatee);
         if (!evaluatee_id)
           return res
             .status(422)
             .json({ message: "evaluatee_id required for evaluator" });
-        const ok = await asgRepo.hasPairInPeriod({
-          period_id,
-          evaluatee_id,
-          evaluator_id: userId,
-        });
-        if (!ok)
+        // ตรวจสอบว่า evaluator ถูก assign ให้ประเมิน evaluatee นี้ใน assignment นี้
+        if (assignment.evaluator_id !== userId || assignment.evaluatee_id !== evaluatee_id) {
           return res
             .status(403)
-            .json({ message: "Not your evaluatee" });
+            .json({ message: "Not your evaluatee in this assignment" });
+        }
       } else {
         return res.status(403).json({ message: "Invalid role" });
       }
@@ -134,13 +155,13 @@ router.post(
       // 5) insert attachment
       const [id] = await db("attachments").insert({
         evaluatee_id,
-        period_id,
+        assignment_id,
         indicator_id,
         evidence_type_id,
         storage_path: req.file.filename,
-        original_name: req.file.originalname,
-        file_size: req.file.size,
+        file_name: req.file.originalname,
         mime_type: req.file.mimetype,
+        size_bytes: req.file.size,
         note: note || null,
       });
 

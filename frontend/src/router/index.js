@@ -34,12 +34,6 @@ const routes = [
     meta: { requiresAuth: true, role: 'admin' }
   },
   {
-    path: '/admin/periods',
-    name: 'PeriodsManage',
-    component: () => import('@/views/hr/PeriodsManage.vue'),
-    meta: { requiresAuth: true, role: 'admin' }
-  },
-  {
     path: '/admin/topics',
     name: 'TopicsManage',
     component: () => import('@/views/hr/TopicsManage.vue'),
@@ -104,7 +98,7 @@ const routes = [
     meta: { requiresAuth: true, role: 'evaluator' }
   },
   {
-    path: '/evaluator/review/:evaluateeId/:periodId',
+    path: '/evaluator/review/:evaluateeId/:assignmentId',
     name: 'EvaluationReview',
     component: () => import('@/views/committee/EvaluationReview.vue'),
     meta: { requiresAuth: true, role: 'evaluator' }

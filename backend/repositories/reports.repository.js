@@ -2,8 +2,8 @@
 // Repository สำหรับจัดการรายงานสรุปผลการประเมิน
 const db = require('../db/knex');
 
-// สรุปผลรายบุคคล (รายละเอียดครบ)
-exports.getIndividualSummary = async (evaluateeId, periodId) => {
+// สรุปผลรายบุคคล (รายละเอียดครบ) - เปลี่ยน periodId → assignmentId
+exports.getIndividualSummary = async (evaluateeId, assignmentId) => {
   // ข้อมูลพื้นฐาน
   const evaluatee = await db('users')
     .select('id', 'name_th', 'email')
@@ -12,11 +12,13 @@ exports.getIndividualSummary = async (evaluateeId, periodId) => {
 
   if (!evaluatee) return null;
 
-  // ข้อมูลรอบประเมิน
-  const period = await db('periods')
-    .select('id', 'name_th', 'start_date', 'end_date')
-    .where('id', periodId)
+  // ข้อมูล assignment (แทน periods)
+  const assignment = await db('assignments')
+    .select('id', 'start_date', 'end_date', 'is_active', 'evaluator_id')
+    .where('id', assignmentId)
     .first();
+
+  if (!assignment) return null;
 
   // ผลการประเมินแต่ละตัวชี้วัด
   const results = await db('results as er')
@@ -33,7 +35,7 @@ exports.getIndividualSummary = async (evaluateeId, periodId) => {
     .leftJoin('topics as t', 'i.topic_id', 't.id')
     .leftJoin('users as evaluator', 'er.evaluator_id', 'evaluator.id')
     .where('er.evaluatee_id', evaluateeId)
-    .where('er.period_id', periodId)
+    .where('er.assignment_id', assignmentId)
     .orderBy('t.id', 'asc')
     .orderBy('i.id', 'asc');
 
@@ -45,7 +47,7 @@ exports.getIndividualSummary = async (evaluateeId, periodId) => {
     )
     .leftJoin('users', 'comments.evaluator_id', 'users.id')
     .where('comments.evaluatee_id', evaluateeId)
-    .where('comments.period_id', periodId)
+    .where('comments.assignment_id', assignmentId)
     .orderBy('comments.created_at', 'desc');
 
   // ลายเซ็นกรรมการ
@@ -58,7 +60,7 @@ exports.getIndividualSummary = async (evaluateeId, periodId) => {
       )
       .leftJoin('users', 'signatures.evaluator_id', 'users.id')
       .where('signatures.evaluatee_id', evaluateeId)
-      .where('signatures.period_id', periodId)
+      .where('signatures.assignment_id', assignmentId)
       .orderBy('signatures.signed_at', 'desc');
   } catch (error) {
     // ถ้า column ไม่มี ให้ลอง query แบบไม่มี table prefix
@@ -70,7 +72,7 @@ exports.getIndividualSummary = async (evaluateeId, periodId) => {
         )
         .leftJoin('users', 'signatures.evaluator_id', 'users.id')
         .where('evaluatee_id', evaluateeId)
-        .where('period_id', periodId)
+        .where('assignment_id', assignmentId)
         .orderBy('signed_at', 'desc');
     } else {
       console.error('[Reports] Error fetching signatures:', error);
@@ -84,7 +86,7 @@ exports.getIndividualSummary = async (evaluateeId, periodId) => {
 
   return {
     evaluatee,
-    period,
+    assignment,
     results,
     comments,
     signatures,
@@ -99,20 +101,20 @@ exports.getIndividualSummary = async (evaluateeId, periodId) => {
   };
 };
 
-// สรุปผลรวมทั้งหมด (ภาพรวม)
-exports.getOverallSummary = async (periodId) => {
+// สรุปผลรวมทั้งหมดใน assignment (เปลี่ยน periodId → assignmentId)
+exports.getOverallSummary = async (assignmentId) => {
   // ใช้ calculateFinal เพื่อคำนวณคะแนนรวมที่ถูกต้อง
   const allResults = await db('results as er')
     .select('er.evaluatee_id', 'u.name_th as evaluatee_name')
     .leftJoin('users as u', 'er.evaluatee_id', 'u.id')
-    .where('er.period_id', periodId)
+    .where('er.assignment_id', assignmentId)
     .groupBy('er.evaluatee_id', 'u.name_th')
     .orderBy('u.name_th', 'asc');
 
   const resultsRepo = require('./results.repository');
   const summaries = await Promise.all(
     allResults.map(async (row) => {
-      const summary = await resultsRepo.calculateFinal(row.evaluatee_id, periodId);
+      const summary = await resultsRepo.calculateFinal(row.evaluatee_id, assignmentId);
       return {
         evaluatee_id: row.evaluatee_id,
         evaluatee_name: row.evaluatee_name,
@@ -127,8 +129,8 @@ exports.getOverallSummary = async (periodId) => {
   return summaries;
 };
 
-// สรุปตามหัวข้อการประเมิน
-exports.getTopicSummary = async (periodId) => {
+// สรุปตามหัวข้อการประเมิน (เปลี่ยน periodId → assignmentId)
+exports.getTopicSummary = async (assignmentId) => {
   const summary = await db('results as er')
     .select(
       't.id as topic_id',
@@ -140,14 +142,14 @@ exports.getTopicSummary = async (periodId) => {
     .avg('er.evaluator_score as avg_evaluator_score')
     .leftJoin('indicators as i', 'er.indicator_id', 'i.id')
     .leftJoin('topics as t', 'i.topic_id', 't.id')
-    .where('er.period_id', periodId)
+    .where('er.assignment_id', assignmentId)
     .groupBy('t.id', 't.title_th', 't.weight')
     .orderBy('t.id', 'asc');
 
   return summary;
 };
 
-// ข้อมูลสำหรับ Export PDF
-exports.getExportData = async (evaluateeId, periodId) => {
-  return exports.getIndividualSummary(evaluateeId, periodId);
+// ข้อมูลสำหรับ Export PDF (เปลี่ยน periodId → assignmentId)
+exports.getExportData = async (evaluateeId, assignmentId) => {
+  return exports.getIndividualSummary(evaluateeId, assignmentId);
 };

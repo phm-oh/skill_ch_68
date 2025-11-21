@@ -2,19 +2,19 @@
 // Controller สำหรับจัดการรายงานสรุป (Reports)
 const reportsRepo = require('../repositories/reports.repository');
 
-// GET /api/reports/individual/:evaluateeId/:periodId
+// GET /api/reports/individual/:evaluateeId/:assignmentId (เปลี่ยน periodId → assignmentId)
 // สรุปผลการประเมินรายบุคคล
 exports.getIndividualSummary = async (req, res, next) => {
   try {
-    const { evaluateeId, periodId } = req.params;
+    const { evaluateeId, assignmentId } = req.params;
     
     // เรียกข้อมูลจาก repository
-    const data = await reportsRepo.getIndividualSummary(evaluateeId, periodId);
+    const data = await reportsRepo.getIndividualSummary(evaluateeId, assignmentId);
     
     if (!data) {
       return res.status(404).json({ 
         success: false, 
-        message: 'No data found for this evaluatee and period' 
+        message: 'No data found for this evaluatee and assignment' 
       });
     }
     
@@ -24,14 +24,14 @@ exports.getIndividualSummary = async (req, res, next) => {
   }
 };
 
-// GET /api/reports/overall/:periodId
-// สรุปภาพรวมทั้งหมดในรอบประเมิน
+// GET /api/reports/overall/:assignmentId (เปลี่ยน periodId → assignmentId)
+// สรุปภาพรวมทั้งหมดใน assignment
 exports.getOverallSummary = async (req, res, next) => {
   try {
-    const { periodId } = req.params;
+    const { assignmentId } = req.params;
     
     // เรียกข้อมูลรายการทั้งหมด
-    const items = await reportsRepo.getOverallSummary(periodId);
+    const items = await reportsRepo.getOverallSummary(assignmentId);
     
     res.json({ 
       success: true, 
@@ -43,13 +43,13 @@ exports.getOverallSummary = async (req, res, next) => {
   }
 };
 
-// GET /api/reports/topics/:periodId
+// GET /api/reports/topics/:assignmentId (เปลี่ยน periodId → assignmentId)
 // สรุปคะแนนตามหัวข้อประเมิน
 exports.getTopicSummary = async (req, res, next) => {
   try {
-    const { periodId } = req.params;
+    const { assignmentId } = req.params;
     
-    const items = await reportsRepo.getTopicSummary(periodId);
+    const items = await reportsRepo.getTopicSummary(assignmentId);
     
     res.json({ 
       success: true, 
@@ -61,15 +61,15 @@ exports.getTopicSummary = async (req, res, next) => {
   }
 };
 
-// GET /api/reports/export-pdf/:evaluateeId/:periodId
+// GET /api/reports/export-pdf/:evaluateeId/:assignmentId (เปลี่ยน periodId → assignmentId)
 // Export PDF สำหรับรายงานรายบุคคล
 // TODO: ใช้ PDFKit หรือ Puppeteer สร้าง PDF จริง
 exports.exportPDF = async (req, res, next) => {
   try {
-    const { evaluateeId, periodId } = req.params;
+    const { evaluateeId, assignmentId } = req.params;
     
     // ดึงข้อมูลสำหรับ export
-    const data = await reportsRepo.getExportData(evaluateeId, periodId);
+    const data = await reportsRepo.getExportData(evaluateeId, assignmentId);
     
     if (!data) {
       return res.status(404).json({ 
@@ -85,7 +85,7 @@ exports.exportPDF = async (req, res, next) => {
     // const PDFDocument = require('pdfkit');
     // const doc = new PDFDocument();
     // res.setHeader('Content-Type', 'application/pdf');
-    // res.setHeader('Content-Disposition', `attachment; filename=report-${evaluateeId}-${periodId}.pdf`);
+    // res.setHeader('Content-Disposition', `attachment; filename=report-${evaluateeId}-${assignmentId}.pdf`);
     // doc.pipe(res);
     // doc.text('รายงานการประเมิน', { align: 'center' });
     // doc.end();

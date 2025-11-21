@@ -25,11 +25,11 @@ exports.get = async (req, res, next) => {
   }
 };
 
-// GET /api/comments/evaluatee/:evaluateeId/period/:periodId
-exports.getByEvaluateeAndPeriod = async (req, res, next) => {
+// GET /api/comments/evaluatee/:evaluateeId/assignment/:assignmentId (เปลี่ยน period → assignment)
+exports.getByEvaluateeAndAssignment = async (req, res, next) => {
   try {
-    const { evaluateeId, periodId } = req.params;
-    const items = await commentsRepo.findByEvaluateeAndPeriod(evaluateeId, periodId);
+    const { evaluateeId, assignmentId } = req.params;
+    const items = await commentsRepo.findByEvaluateeAndAssignment(evaluateeId, assignmentId);
     res.json({ success: true, items, total: items.length });
   } catch (e) {
     next(e);
@@ -46,25 +46,25 @@ exports.getByEvaluator = async (req, res, next) => {
   }
 };
 
-// GET /api/comments/period/:periodId
-exports.getByPeriod = async (req, res, next) => {
+// GET /api/comments/assignment/:assignmentId (เปลี่ยน period → assignment)
+exports.getByAssignment = async (req, res, next) => {
   try {
-    const items = await commentsRepo.findByPeriod(req.params.periodId);
+    const items = await commentsRepo.findByAssignment(req.params.assignmentId);
     res.json({ success: true, items, total: items.length });
   } catch (e) {
     next(e);
   }
 };
 
-// POST /api/comments
+// POST /api/comments (เปลี่ยน period_id → assignment_id)
 exports.create = async (req, res, next) => {
   try {
     const userId = req.user.id;
-    const { period_id, evaluatee_id, comment_text, comment_type } = req.body;
+    const { assignment_id, evaluatee_id, comment_text, comment_type } = req.body;
 
     // ตรวจ input
-    if (!period_id) {
-      return res.status(400).json({ success: false, message: 'period_id required' });
+    if (!assignment_id) {
+      return res.status(400).json({ success: false, message: 'assignment_id required' });
     }
     if (!evaluatee_id) {
       return res.status(400).json({ success: false, message: 'evaluatee_id required' });
@@ -80,7 +80,7 @@ exports.create = async (req, res, next) => {
 
     // สร้าง
     const data = await commentsRepo.create({
-      period_id,
+      assignment_id,
       evaluatee_id,
       evaluator_id: userId,
       comment_text,

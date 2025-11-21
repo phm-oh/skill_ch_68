@@ -26,8 +26,8 @@
       <v-col cols="12" md="3">
         <v-card color="success">
           <v-card-text class="text-white">
-            <div class="text-h6">รอบการประเมิน</div>
-            <div class="text-h3">{{ stats.totalPeriods }}</div>
+            <div class="text-h6">การมอบหมายทั้งหมด</div>
+            <div class="text-h3">{{ stats.totalAssignments }}</div>
           </v-card-text>
         </v-card>
       </v-col>
@@ -35,8 +35,8 @@
       <v-col cols="12" md="3">
         <v-card color="warning">
           <v-card-text class="text-white">
-            <div class="text-h6">รอบที่เปิดอยู่</div>
-            <div class="text-h3">{{ stats.activePeriods }}</div>
+            <div class="text-h6">การมอบหมายที่เปิดอยู่</div>
+            <div class="text-h3">{{ stats.activeAssignments }}</div>
           </v-card-text>
         </v-card>
       </v-col>
@@ -44,8 +44,8 @@
       <v-col cols="12" md="3">
         <v-card color="info">
           <v-card-text class="text-white">
-            <div class="text-h6">การมอบหมาย</div>
-            <div class="text-h3">{{ stats.totalAssignments }}</div>
+            <div class="text-h6">ผู้ประเมิน</div>
+            <div class="text-h3">{{ stats.totalEvaluators }}</div>
           </v-card-text>
         </v-card>
       </v-col>
@@ -78,7 +78,6 @@ import { useRouter } from 'vue-router';
 import { useAuthStore } from '@/stores/auth';
 import { useNotificationStore } from '@/stores/notification';
 import userService from '@/services/userService';
-import periodService from '@/services/periodService';
 import assignmentService from '@/services/assignmentService';
 import BaseCard from '@/components/base/BaseCard.vue';
 import LoadingOverlay from '@/components/base/LoadingOverlay.vue';
@@ -90,38 +89,36 @@ const notificationStore = useNotificationStore();
 const loading = ref(false);
 const stats = ref({
   totalUsers: 0,
-  totalPeriods: 0,
-  activePeriods: 0,
-  totalAssignments: 0
+  totalAssignments: 0,
+  activeAssignments: 0,
+  totalEvaluators: 0
 });
 
 const menus = [
   { title: 'จัดการผู้ใช้', icon: 'mdi-account-multiple', color: 'primary', path: '/admin/users', description: 'เพิ่ม แก้ไข ลบผู้ใช้' },
-  { title: 'จัดการรอบการประเมิน', icon: 'mdi-calendar', color: 'success', path: '/admin/periods', description: 'กำหนดรอบการประเมิน' },
   { title: 'จัดการหัวข้อ', icon: 'mdi-file-document', color: 'warning', path: '/admin/topics', description: 'กำหนดหัวข้อการประเมิน' },
   { title: 'จัดการตัวชี้วัด', icon: 'mdi-chart-box', color: 'info', path: '/admin/indicators', description: 'กำหนดตัวชี้วัดการประเมิน' },
-  { title: 'มอบหมายกรรมการ', icon: 'mdi-account-star', color: 'orange', path: '/admin/assignments', description: 'มอบหมายงานประเมิน' },
+  { title: 'มอบหมายกรรมการ', icon: 'mdi-account-star', color: 'orange', path: '/admin/assignments', description: 'มอบหมายงานประเมิน (กำหนดช่วงวัน)' },
   { title: 'รายงาน', icon: 'mdi-chart-line', color: 'purple', path: '/admin/reports', description: 'ดูรายงานและสถิติ' }
 ];
 
 const fetchStats = async () => {
   loading.value = true;
   try {
-    const [usersRes, periodsRes, assignmentsRes] = await Promise.all([
+    const [usersRes, assignmentsRes] = await Promise.all([
       userService.getAll(),
-      periodService.getAll(),
       assignmentService.getAll()
     ]);
 
     // Backend ส่ง { success: true, items: [...] }
     const users = usersRes.data.items || usersRes.data.data || [];
-    const periods = periodsRes.data.items || periodsRes.data.data || [];
     const assignments = assignmentsRes.data.items || assignmentsRes.data.data || [];
+    const evaluators = users.filter(u => u.role === 'evaluator');
 
     stats.value.totalUsers = users.length;
-    stats.value.totalPeriods = periods.length;
-    stats.value.activePeriods = periods.filter(p => p.is_active).length;
     stats.value.totalAssignments = assignments.length;
+    stats.value.activeAssignments = assignments.filter(a => a.is_active).length;
+    stats.value.totalEvaluators = evaluators.length;
   } catch (error) {
     notificationStore.error('ไม่สามารถโหลดข้อมูลได้');
   } finally {

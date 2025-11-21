@@ -15,15 +15,15 @@ function relFromUploads(absPath) {
     .relative(path.join(__dirname, '..', 'uploads'), absPath)
     .replace(/\\/g, '/');
 }
-async function isPeriodActive(period_id) {
-  const row = await db('periods').where({ id: period_id, is_active: 1 }).first(); 
-  // return row or undefined หมายความว่า period_id ที่ส่งมา ต้องเป็นเลข และต้องมีในตาราง periods และ is_active=1  เพื่อให้ period นั้นเปิดอยู่
+async function isAssignmentActive(assignment_id) {
+  const row = await db('assignments').where({ id: assignment_id, is_active: 1 }).first(); 
+  // return row or undefined หมายความว่า assignment_id ที่ส่งมา ต้องเป็นเลข และต้องมีในตาราง assignments และ is_active=1  เพื่อให้ assignment นั้นเปิดอยู่
   return !!row;
 }
 
 // =====================================================================
-// Evaluatee: CREATE (อัปโหลดหลักฐานของตัวเอง)
-// Body: { period_id, indicator_id, evidence_type_id } + file
+// Evaluatee: CREATE (อัปโหลดหลักฐานของตัวเอง) (เปลี่ยน period_id → assignment_id)
+// Body: { assignment_id, indicator_id, evidence_type_id } + file
 // =====================================================================
 exports.uploadEvidence = async (req, res, next) => {
   console.log('uploadEvidence body=', req.body);
@@ -35,24 +35,22 @@ exports.uploadEvidence = async (req, res, next) => {
   try {
     const evaluatee_id = Number(req.user?.id);// ต้องมี user.id จาก JWT เสมอ  return 401 ถ้าไม่มี   ถ้ามี return 400
         if (!evaluatee_id) return res.status(401).json({ success:false, message:'invalid user' });
-    const { period_id, indicator_id, evidence_type_id } = req.body || {};
+    const { assignment_id, indicator_id, evidence_type_id } = req.body || {};
 
     if (!req.file) return res.status(400).json({ success:false, message:'ไม่ได้ส่ง file มาด้วย' });
-    if (!period_id || !indicator_id || !evidence_type_id) {
-      return res.status(400).json({ success:false, message:'missing period_id/indicator_id/evidence_type_id' });
+    if (!assignment_id || !indicator_id || !evidence_type_id) {
+      return res.status(400).json({ success:false, message:'missing assignment_id/indicator_id/evidence_type_id' });
     }
 
-    // ต้องถูก assign ใน period นั้น
-    const okAssign = await asgRepo.hasEvaluateeInPeriod({  //return true/false
-      period_id: Number(period_id),
-      evaluatee_id
-    });
-    if (!okAssign) return res.status(400).json({ success:false, message:'evaluatee not assigned in the period' });
+    // ตรวจสอบว่า assignment มีอยู่จริง และ evaluatee ถูก assign ใน assignment นั้น
+    const assignment = await db('assignments').where({ id: Number(assignment_id), evaluatee_id }).first();
+    if (!assignment) {
+      return res.status(404).json({ success:false, message:'assignment not found or not assigned to you' });
+    }
 
-    // ตรวจสอบว่า period มีอยู่จริง (ไม่ต้องเช็ค is_active เพราะถ้าถูก assign แล้วควรให้ upload ได้)
-    const periodExists = await db('periods').where({ id: Number(period_id) }).first();
-    if (!periodExists) {
-      return res.status(404).json({ success:false, message:'period not found' });
+    // ตรวจสอบว่า assignment active
+    if (!assignment.is_active) {
+      return res.status(400).json({ success:false, message:'assignment is not active' });
     }
 
     // Note: Skipping indicator-evidence_type validation for competition (6-hour timeframe)
@@ -67,7 +65,7 @@ exports.uploadEvidence = async (req, res, next) => {
     const storage_path = relFromUploads(req.file.path);
     console.log('storage_path=', storage_path);
     const [id] = await db('attachments').insert({
-      period_id: Number(period_id),
+      assignment_id: Number(assignment_id),
       evaluatee_id,
       indicator_id: Number(indicator_id),
       evidence_type_id: Number(evidence_type_id),
@@ -83,16 +81,16 @@ exports.uploadEvidence = async (req, res, next) => {
 };
 
 // =====================================================================
-// Evaluatee: LIST ของตัวเอง
-// Query optional: period_id, indicator_id, evidence_type_id
+// Evaluatee: LIST ของตัวเอง (เปลี่ยน period_id → assignment_id)
+// Query optional: assignment_id, indicator_id, evidence_type_id
 // =====================================================================
 exports.listMine = async (req, res, next) => {
   try {
     const evaluatee_id = Number(req.user?.id);
-    const { period_id, indicator_id, evidence_type_id } = req.query || {};
+    const { assignment_id, indicator_id, evidence_type_id } = req.query || {};
 
     let q = db('attachments').where({ evaluatee_id }).orderBy('id', 'desc');
-    if (period_id) q = q.andWhere({ period_id: Number(period_id) });
+    if (assignment_id) q = q.andWhere({ assignment_id: Number(assignment_id) });
     if (indicator_id) q = q.andWhere({ indicator_id: Number(indicator_id) });
     if (evidence_type_id) q = q.andWhere({ evidence_type_id: Number(evidence_type_id) });
 
@@ -186,16 +184,16 @@ exports.updateMetaMine = async (req, res, next) => {
 };
 
 // =====================================================================
-// Evaluator: LIST หลักฐานของ evaluatee ที่ดูแล
-// Query optional: period_id
+// Evaluator: LIST หลักฐานของ evaluatee ที่ดูแล (เปลี่ยน period_id → assignment_id)
+// Query optional: assignment_id
 // =====================================================================
 exports.listForEvaluator = async (req, res, next) => {
   try {
     const evaluateeId = Number(req.params.evaluateeId);
-    const { period_id } = req.query || {};
+    const { assignment_id } = req.query || {};
 
     let q = db('attachments').where({ evaluatee_id: evaluateeId }).orderBy('id', 'desc');
-    if (period_id) q = q.andWhere({ period_id: Number(period_id) });
+    if (assignment_id) q = q.andWhere({ assignment_id: Number(assignment_id) });
 
     // (ถ้าต้องการตรวจสิทธิ์ evaluator ↔ evaluatee เพิ่ม เติมที่นี่)
     const rows = await q;

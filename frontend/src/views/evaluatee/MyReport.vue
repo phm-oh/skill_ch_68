@@ -5,17 +5,17 @@
     </v-btn>
     <div class="d-flex justify-space-between align-center mb-4">
       <h1 class="text-h4">รายงานผลการประเมิน</h1>
-      <v-btn color="primary" @click="exportPDF" :disabled="!selectedPeriod">
+      <v-btn color="primary" @click="exportPDF" :disabled="!selectedAssignment">
         <v-icon icon="mdi-file-pdf-box" start></v-icon>Export PDF
       </v-btn>
     </div>
     <v-card class="mb-4">
       <v-card-text>
-        <v-select v-model="selectedPeriod" :items="periods" item-title="name_th" item-value="id"
+        <v-select v-model="selectedAssignment" :items="assignments" :item-title="(item) => formatAssignmentInfo(item)" item-value="id"
           label="เลือกรอบการประเมิน" variant="outlined" density="comfortable" @update:modelValue="fetchReportData" />
       </v-card-text>
     </v-card>
-    <template v-if="selectedPeriod && !loading">
+    <template v-if="selectedAssignment && !loading">
       <v-row>
         <v-col cols="12" md="4">
           <score-display :total-score="summary.totalScore" :max-score="summary.maxScore" :topic-scores="summary.topicScores" />
@@ -111,7 +111,7 @@
         </v-col>
       </v-row>
     </template>
-    <v-alert v-else-if="!selectedPeriod && !loading" type="info" variant="tonal" class="mt-4">
+    <v-alert v-else-if="!selectedAssignment && !loading" type="info" variant="tonal" class="mt-4">
       กรุณาเลือกรอบการประเมินเพื่อดูรายงาน
     </v-alert>
     <loading-overlay v-model="loading" message="กำลังโหลดข้อมูล..." />
@@ -122,7 +122,7 @@
 import { ref, onMounted } from 'vue';
 import { useAuthStore } from '@/stores/auth';
 import { useNotificationStore } from '@/stores/notification';
-import periodService from '@/services/periodService';
+import assignmentService from '@/services/assignmentService';
 import evaluationService from '@/services/evaluationService';
 import signatureService from '@/services/signatureService';
 import ScoreDisplay from '@/components/common/ScoreDisplay.vue';
@@ -133,8 +133,8 @@ import { formatDateTime } from '@/utils/helpers';
 const authStore = useAuthStore();
 const notificationStore = useNotificationStore();
 const loading = ref(false);
-const periods = ref([]);
-const selectedPeriod = ref(null);
+const assignments = ref([]);
+const selectedAssignment = ref(null);
 const tableData = ref([]);
 const summary = ref({ totalScore: 0, maxScore: 100, topicScores: [], selfTotal: 0, evaluatorTotal: 0 });
 const comments = ref({ self: [], evaluator: [] });
@@ -154,24 +154,34 @@ const tableHeaders = [
   { title: 'สถานะ', key: 'status', sortable: true, align: 'center' }
 ];
 
-const fetchPeriods = async () => {
+// Format assignment info for display
+const formatAssignmentInfo = (assignment) => {
+  if (assignment.start_date && assignment.end_date) {
+    return `${new Date(assignment.start_date).toLocaleDateString('th-TH')} - ${new Date(assignment.end_date).toLocaleDateString('th-TH')}`;
+  }
+  return 'ไม่ระบุช่วงเวลา';
+};
+
+const fetchAssignments = async () => {
   try {
-    const response = await periodService.getAll();
+    const response = await assignmentService.getMine();
     // Backend ส่ง { success: true, items: [...] }
-    periods.value = response.data.items || response.data.data || [];
+    const allAssignments = response.data.items || response.data.data || [];
+    // Filter เฉพาะ assignments ที่ is_active = 1
+    assignments.value = allAssignments.filter(a => a.is_active === 1);
   } catch (error) {
     notificationStore.error('ไม่สามารถโหลดรอบการประเมินได้');
   }
 };
 
 const fetchReportData = async () => {
-  if (!selectedPeriod.value) return;
+  if (!selectedAssignment.value) return;
   loading.value = true;
   try {
-    console.log('[MyReport] Fetching for period:', selectedPeriod.value);
+    console.log('[MyReport] Fetching for assignment:', selectedAssignment.value);
     const [resultsRes, summaryRes] = await Promise.all([
-      evaluationService.getMyResults(selectedPeriod.value),
-      evaluationService.getSummary(authStore.user.id, selectedPeriod.value)
+      evaluationService.getMyResults(selectedAssignment.value),
+      evaluationService.getSummary(authStore.user.id, selectedAssignment.value)
     ]);
 
     const results = resultsRes.data.items || resultsRes.data.data || [];
@@ -208,7 +218,7 @@ const fetchReportData = async () => {
 
     // Fetch signature
     try {
-      const signatureRes = await signatureService.getByEvaluatee(authStore.user.id, selectedPeriod.value);
+      const signatureRes = await signatureService.getByEvaluatee(authStore.user.id, selectedAssignment.value);
       const signatures = signatureRes.data.items || signatureRes.data.data || [];
       signature.value = signatures.length > 0 ? signatures[0] : null;
       console.log('[MyReport] Signature:', signature.value);
@@ -250,14 +260,14 @@ const getEvaluatorNameFromData = (sig) => {
 };
 
 const exportPDF = () => {
-  if (!selectedPeriod.value) {
+  if (!selectedAssignment.value) {
     notificationStore.error('กรุณาเลือกรอบการประเมินก่อน');
     return;
   }
   window.print();
 };
 
-onMounted(fetchPeriods);
+onMounted(fetchAssignments);
 </script>
 
 <style scoped>

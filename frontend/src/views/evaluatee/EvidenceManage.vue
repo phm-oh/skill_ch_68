@@ -7,9 +7,9 @@
 
     <base-card title="เลือกรอบการประเมิน" icon="mdi-calendar" class="mb-4">
       <v-select
-        v-model="selectedPeriodId"
-        :items="periods"
-        item-title="name_th"
+        v-model="selectedAssignmentId"
+        :items="assignments"
+        :item-title="(item) => formatAssignmentInfo(item)"
         item-value="id"
         label="รอบการประเมิน"
         variant="outlined"
@@ -18,7 +18,7 @@
       ></v-select>
     </base-card>
 
-    <template v-if="selectedPeriodId && !loading">
+    <template v-if="selectedAssignmentId && !loading">
       <base-card
         v-for="topic in topics"
         :key="topic.id"
@@ -57,7 +57,7 @@
           </div>
 
           <evidence-upload
-            :period-id="selectedPeriodId"
+            :assignment-id="selectedAssignmentId"
             :indicator-id="indicator.id"
             :evidence-type-id="1"
             @uploaded="handleFileUploaded"
@@ -85,9 +85,8 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, computed } from 'vue';
 import { useNotificationStore } from '@/stores/notification';
-import periodService from '@/services/periodService';
 import topicService from '@/services/topicService';
 import uploadService from '@/services/uploadService';
 import assignmentService from '@/services/assignmentService';
@@ -98,45 +97,50 @@ import LoadingOverlay from '@/components/base/LoadingOverlay.vue';
 import BaseDialog from '@/components/base/BaseDialog.vue';
 
 const notificationStore = useNotificationStore();
-const periods = ref([]);
-const selectedPeriodId = ref(null);
+const assignments = ref([]);
+const selectedAssignmentId = ref(null);
 const topics = ref([]);
 const uploadedFiles = ref([]);
 const loading = ref(false);
 const deleteDialog = ref(false);
 const fileToDelete = ref(null);
 
-const fetchPeriods = async () => {
+// Format assignment info for display
+const formatAssignmentInfo = (assignment) => {
+  if (assignment.start_date && assignment.end_date) {
+    return `${new Date(assignment.start_date).toLocaleDateString('th-TH')} - ${new Date(assignment.end_date).toLocaleDateString('th-TH')}`;
+  }
+  return 'ไม่ระบุช่วงเวลา';
+};
+
+const fetchAssignments = async () => {
   try {
-    // ดึง periods ที่ user ถูก assign เท่านั้น
+    // ดึง assignments ที่ user ถูก assign และ active เท่านั้น
     const assignmentsRes = await assignmentService.getMine();
-    const assignments = assignmentsRes.data.items || assignmentsRes.data.data || [];
+    const allAssignments = assignmentsRes.data.items || assignmentsRes.data.data || [];
     
-    // ดึง period IDs ที่ user ถูก assign
-    const assignedPeriodIds = [...new Set(assignments.map(a => a.period_id))];
+    // Filter เฉพาะ assignments ที่ is_active = 1
+    assignments.value = allAssignments.filter(a => a.is_active === 1);
     
-    // ดึงข้อมูล periods ทั้งหมด
-    const periodsRes = await periodService.getAll();
-    const allPeriods = periodsRes.data.items || periodsRes.data.data || [];
+    // เพิ่ม assignmentInfo property สำหรับ display
+    assignments.value = assignments.value.map(a => ({
+      ...a,
+      assignmentInfo: formatAssignmentInfo(a)
+    }));
     
-    // Filter เฉพาะ periods ที่ user ถูก assign และ is_active = 1
-    periods.value = allPeriods.filter(p => 
-      assignedPeriodIds.includes(p.id) && p.is_active === 1
-    );
-    
-    // เลือก period แรกที่ถูก assign และ active
-    if (periods.value.length > 0) {
-      selectedPeriodId.value = periods.value[0].id;
+    // เลือก assignment แรกที่ active
+    if (assignments.value.length > 0) {
+      selectedAssignmentId.value = assignments.value[0].id;
       await loadTopicsAndIndicators();
     }
   } catch (error) {
-    console.error('[EvidenceManage] Error fetching periods:', error);
+    console.error('[EvidenceManage] Error fetching assignments:', error);
     notificationStore.error('ไม่สามารถโหลดรอบการประเมินได้');
   }
 };
 
 const loadTopicsAndIndicators = async () => {
-  if (!selectedPeriodId.value) return;
+  if (!selectedAssignmentId.value) return;
   loading.value = true;
   try {
     const topicsRes = await topicService.getAll();
@@ -149,10 +153,10 @@ const loadTopicsAndIndicators = async () => {
     }
     topics.value = allTopics;
 
-    // Filter files เฉพาะ period ที่เลือก
+    // Filter files เฉพาะ assignment ที่เลือก
     const res = await uploadService.getMine();
     const allFiles = res.data.items || res.data.data || [];
-    uploadedFiles.value = allFiles.filter(f => f.period_id === selectedPeriodId.value);
+    uploadedFiles.value = allFiles.filter(f => f.assignment_id === selectedAssignmentId.value);
   } catch (error) {
     notificationStore.error('ไม่สามารถโหลดข้อมูลได้');
   } finally {
@@ -165,8 +169,8 @@ const getIndicatorFiles = (indicatorId) => uploadedFiles.value.filter(f => f.ind
 const handleFileUploaded = async () => {
   const res = await uploadService.getMine();
   const allFiles = res.data.items || res.data.data || [];
-  // Filter files เฉพาะ period ที่เลือก
-  uploadedFiles.value = allFiles.filter(f => f.period_id === selectedPeriodId.value);
+  // Filter files เฉพาะ assignment ที่เลือก
+  uploadedFiles.value = allFiles.filter(f => f.assignment_id === selectedAssignmentId.value);
   notificationStore.success('อัปโหลดไฟล์สำเร็จ');
 };
 
@@ -228,5 +232,5 @@ const getFileIcon = (fileName) => {
 };
 
 
-onMounted(fetchPeriods);
+onMounted(fetchAssignments);
 </script>

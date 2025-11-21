@@ -3,15 +3,15 @@
 const db = require('../db/knex');
 const TABLE = 'signatures';
 
-// ดึงตาม evaluatee_id และ period_id
-exports.findByEvaluateeAndPeriod = async (evaluateeId, periodId) => {
+// ดึงตาม evaluatee_id และ assignment_id (เปลี่ยน period_id → assignment_id)
+exports.findByEvaluateeAndAssignment = async (evaluateeId, assignmentId) => {
   try {
     return await db(TABLE)
       .select('signatures.*', 'users.name_th as evaluator_name')
       .leftJoin('users', 'signatures.evaluator_id', 'users.id')
       .where({
         'signatures.evaluatee_id': evaluateeId,
-        'signatures.period_id': periodId
+        'signatures.assignment_id': assignmentId
       })
       .orderBy('signatures.signed_at', 'desc');
   } catch (error) {
@@ -22,7 +22,7 @@ exports.findByEvaluateeAndPeriod = async (evaluateeId, periodId) => {
         .leftJoin('users', 'signatures.evaluator_id', 'users.id')
         .where({
           evaluatee_id: evaluateeId,
-          period_id: periodId
+          assignment_id: assignmentId
         })
         .orderBy('signed_at', 'desc');
     }
@@ -30,27 +30,27 @@ exports.findByEvaluateeAndPeriod = async (evaluateeId, periodId) => {
   }
 };
 
-// ตรวจสอบว่ามีลายเซ็นแล้วหรือไม่
-exports.exists = async (evaluateeId, periodId, evaluatorId) => {
+// ตรวจสอบว่ามีลายเซ็นแล้วหรือไม่ (เปลี่ยน periodId → assignmentId)
+exports.exists = async (evaluateeId, assignmentId, evaluatorId) => {
   const row = await db(TABLE)
     .where({
       evaluatee_id: evaluateeId,
-      period_id: periodId,
+      assignment_id: assignmentId,
       evaluator_id: evaluatorId
     })
     .first();
   return !!row;
 };
 
-// สร้างใหม่
+// สร้างใหม่ (เปลี่ยน period_id → assignment_id)
 exports.create = async (payload) => {
   // ตรวจสอบว่ามีลายเซ็นแล้วหรือไม่
-  const exists = await exports.exists(payload.evaluatee_id, payload.period_id, payload.evaluator_id);
+  const exists = await exports.exists(payload.evaluatee_id, payload.assignment_id, payload.evaluator_id);
   if (exists) {
-    throw new Error('Signature already exists for this evaluatee, period and evaluator');
+    throw new Error('Signature already exists for this evaluatee, assignment and evaluator');
   }
 
   const [id] = await db(TABLE).insert(payload);
-  return exports.findByEvaluateeAndPeriod(payload.evaluatee_id, payload.period_id)
+  return exports.findByEvaluateeAndAssignment(payload.evaluatee_id, payload.assignment_id)
     .then(results => results.find(r => r.id === id));
 };

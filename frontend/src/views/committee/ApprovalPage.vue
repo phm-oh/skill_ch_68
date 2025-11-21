@@ -40,7 +40,7 @@
           <v-list-item v-for="item in approveDialog.items" :key="item.id">
             <template #prepend><v-icon icon="mdi-account" color="primary"></v-icon></template>
             <v-list-item-title>{{ item.full_name }}</v-list-item-title>
-            <v-list-item-subtitle>{{ item.period_name }}</v-list-item-subtitle>
+            <v-list-item-subtitle>{{ item.assignment_info }}</v-list-item-subtitle>
           </v-list-item>
         </v-list>
       </div>
@@ -48,7 +48,7 @@
         <p>คุณต้องการอนุมัติการประเมินของ</p>
         <v-card class="mt-3 pa-3" variant="tonal">
           <div><strong>ชื่อ:</strong> {{ approveDialog.items[0]?.full_name }}</div>
-          <div><strong>รอบการประเมิน:</strong> {{ approveDialog.items[0]?.period_name }}</div>
+          <div><strong>รอบการประเมิน:</strong> {{ approveDialog.items[0]?.assignment_info }}</div>
           <div><strong>คะแนนรวม:</strong> {{ approveDialog.items[0]?.total_score }}</div>
         </v-card>
       </div>
@@ -83,7 +83,7 @@ const approveDialog = ref({ show: false, isBulk: false, items: [] });
 
 const headers = [
   { title: 'ชื่อ-สกุล', key: 'full_name', sortable: true },
-  { title: 'รอบการประเมิน', key: 'period_name', sortable: true },
+  { title: 'รอบการประเมิน', key: 'assignment_info', sortable: true },
   { title: 'คะแนนรวม', key: 'total_score', sortable: true, align: 'center' },
   { title: 'ลงนามเมื่อ', key: 'signed_at', sortable: true, align: 'center' },
   { title: 'จัดการ', key: 'actions', sortable: false, align: 'center' }
@@ -97,7 +97,7 @@ const combinedData = computed(() => {
   return assignments.value.map(assignment => {
     // Get all evaluation results for this assignment
     const results = evaluations.value.filter(
-      e => e.evaluatee_id === assignment.evaluatee_id && e.period_id === assignment.period_id
+      e => e.evaluatee_id === assignment.evaluatee_id && e.assignment_id === assignment.id
     );
 
     // Determine evaluation status
@@ -119,20 +119,25 @@ const combinedData = computed(() => {
       totalScore = results.reduce((sum, r) => sum + (parseFloat(r.evaluator_score) || 0), 0);
     }
 
-    // Find signature for this evaluatee and period
+    // Find signature for this evaluatee and assignment
     const signature = signatures.value.find(
-      s => s.evaluatee_id === assignment.evaluatee_id && s.period_id === assignment.period_id
+      s => s.evaluatee_id === assignment.evaluatee_id && s.assignment_id === assignment.id
     );
     if (signature) {
       signedAt = signature.signed_at;
     }
 
+    // Format assignment info from start_date and end_date
+    const assignmentInfo = assignment.start_date && assignment.end_date
+      ? `${new Date(assignment.start_date).toLocaleDateString('th-TH')} - ${new Date(assignment.end_date).toLocaleDateString('th-TH')}`
+      : 'ไม่ระบุช่วงเวลา';
+
     return {
-      id: `${assignment.evaluatee_id}-${assignment.period_id}`,
+      id: `${assignment.evaluatee_id}-${assignment.id}`,
       evaluatee_id: assignment.evaluatee_id,
-      period_id: assignment.period_id,
+      assignment_id: assignment.id,
       full_name: assignment.evaluatee_name || '-',
-      period_name: assignment.period_name || '-',
+      assignment_info: assignmentInfo,
       total_score: totalScore.toFixed(2),
       status: status,
       signed_at: signedAt,
@@ -158,7 +163,7 @@ const toggleSelect = (item) => {
   index > -1 ? selected.value.splice(index, 1) : selected.value.push(item);
 };
 
-const goToReview = (item) => router.push(`/evaluator/review/${item.evaluatee_id}/${item.period_id}`);
+const goToReview = (item) => router.push(`/evaluator/review/${item.evaluatee_id}/${item.assignment_id}`);
 
 const openApproveDialog = (item) => {
   approveDialog.value = { show: true, isBulk: false, items: [item] };
@@ -185,7 +190,7 @@ const handleApprove = async () => {
           evaluationService.evaluate({
             evaluatee_id: item.evaluatee_id,
             indicator_id: result.indicator_id,
-            period_id: item.period_id,
+            assignment_id: item.assignment_id,
             score: result.evaluator_score
           })
         ));
@@ -215,7 +220,7 @@ const fetchData = async () => {
 
     // Fetch evaluations for each assignment
     const evaluationPromises = assignments.value.map(assignment =>
-      evaluationService.getByEvaluatee(assignment.evaluatee_id, assignment.period_id)
+      evaluationService.getByEvaluatee(assignment.evaluatee_id, assignment.id)
         .then(res => res.data.items || res.data.data || [])
         .catch(err => {
           console.error(`[ApprovalPage] Error fetching evaluations for ${assignment.evaluatee_id}:`, err);
@@ -230,14 +235,14 @@ const fetchData = async () => {
 
     // Fetch signatures for each assignment
     const signaturePromises = assignments.value.map(assignment =>
-      signatureService.getByEvaluatee(assignment.evaluatee_id, assignment.period_id)
+      signatureService.getByEvaluatee(assignment.evaluatee_id, assignment.id)
         .then(res => {
           const sigs = res.data.items || res.data.data || [];
-          // Add evaluatee_id and period_id to each signature for matching
+          // Add evaluatee_id and assignment_id to each signature for matching
           return sigs.map(sig => ({
             ...sig,
             evaluatee_id: assignment.evaluatee_id,
-            period_id: assignment.period_id
+            assignment_id: assignment.id
           }));
         })
         .catch(err => {

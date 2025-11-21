@@ -7,8 +7,8 @@ const auth = require('../middlewares/auth');
 // ทุก route ต้อง login
 router.use(auth());
 
-// Routes
-router.get('/evaluatee/:evaluateeId/:periodId', ctrl.getByEvaluateeAndPeriod);
+// Routes (เปลี่ยน periodId → assignmentId)
+router.get('/evaluatee/:evaluateeId/:assignmentId', ctrl.getByEvaluateeAndAssignment);
 router.post('/', ctrl.create);
 
 module.exports = router;
