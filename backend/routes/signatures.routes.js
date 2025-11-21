@@ -7,12 +7,8 @@ const auth = require('../middlewares/auth');
 // ทุก route ต้อง login
 router.use(auth());
 
-// Routes (เรียงตาม path ที่เฉพาะเจาะจงก่อน)
+// Routes
 router.get('/evaluatee/:evaluateeId/:periodId', ctrl.getByEvaluateeAndPeriod);
-router.get('/evaluator/:evaluatorId', ctrl.getByEvaluator);
-router.get('/', ctrl.list);
-router.get('/:id', ctrl.get);
 router.post('/', ctrl.create);
-router.delete('/:id', ctrl.remove);
 
 module.exports = router;

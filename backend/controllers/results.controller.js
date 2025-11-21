@@ -144,13 +144,13 @@ exports.submitSelf = async (req, res, next) => {
     }
     
     // Check if exists
-    const existing = await db('evaluation_results')
+    const existing = await db('results')
       .where({ period_id, evaluatee_id: evaluateeId, indicator_id })
       .first();
     
     if (existing) {
       // Update
-      await db('evaluation_results')
+      await db('results')
         .where({ id: existing.id })
         .update({
           self_score,
@@ -160,7 +160,7 @@ exports.submitSelf = async (req, res, next) => {
         });
     } else {
       // Insert
-      await db('evaluation_results').insert({
+      await db('results').insert({
         period_id,
         evaluatee_id: evaluateeId,
         indicator_id,
@@ -171,7 +171,7 @@ exports.submitSelf = async (req, res, next) => {
       });
     }
     
-    const result = await db('evaluation_results')
+    const result = await db('results')
       .where({ period_id, evaluatee_id: evaluateeId, indicator_id })
       .first();
     
@@ -195,7 +195,7 @@ exports.submitEvaluate = async (req, res, next) => {
     }
     
     // Check authorization (ต้องเป็นกรรมการที่ได้รับมอบหมาย)
-    const result = await db('evaluation_results').where({ id: result_id }).first();
+    const result = await db('results').where({ id: result_id }).first();
     if (!result) {
       return res.status(404).json({ success: false, message: 'Result not found' });
     }
@@ -216,7 +216,7 @@ exports.submitEvaluate = async (req, res, next) => {
     }
     
     // Update
-    await db('evaluation_results')
+    await db('results')
       .where({ id: result_id })
       .update({
         evaluator_id: evaluatorId,
@@ -226,7 +226,7 @@ exports.submitEvaluate = async (req, res, next) => {
         status: 'evaluated'
       });
     
-    const updated = await db('evaluation_results').where({ id: result_id }).first();
+    const updated = await db('results').where({ id: result_id }).first();
     
     res.json({ success: true, data: updated });
   } catch (e) {
@@ -244,7 +244,7 @@ exports.getMyProgress = async (req, res, next) => {
       return res.status(400).json({ success: false, message: 'period_id required' });
     }
     
-    const results = await db('evaluation_results as er')
+    const results = await db('results as er')
       .select(
         'er.*',
         'i.name_th as indicator_name',
@@ -252,7 +252,7 @@ exports.getMyProgress = async (req, res, next) => {
         't.title_th as topic_name'
       )
       .leftJoin('indicators as i', 'er.indicator_id', 'i.id')
-      .leftJoin('evaluation_topics as t', 'i.topic_id', 't.id')
+      .leftJoin('topics as t', 'i.topic_id', 't.id')
       .where('er.evaluatee_id', evaluateeId)
       .where('er.period_id', period_id)
       .orderBy('t.id', 'asc')

@@ -91,6 +91,7 @@ import periodService from '@/services/periodService';
 import topicService from '@/services/topicService';
 import uploadService from '@/services/uploadService';
 import assignmentService from '@/services/assignmentService';
+import { formatDate, formatFileSize } from '@/utils/helpers';
 import BaseCard from '@/components/base/BaseCard.vue';
 import EvidenceUpload from '@/components/common/EvidenceUpload.vue';
 import LoadingOverlay from '@/components/base/LoadingOverlay.vue';
@@ -226,15 +227,6 @@ const getFileIcon = (fileName) => {
   return icons[ext] || 'mdi-file-document';
 };
 
-const formatFileSize = (bytes) => {
-  if (!bytes) return '0 B';
-  const k = 1024, sizes = ['B', 'KB', 'MB', 'GB'];
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
-};
-
-const formatDate = (dateString) => dateString ? new Date(dateString).toLocaleDateString('th-TH',
-  { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '';
 
 onMounted(fetchPeriods);
 </script>

@@ -1,6 +1,6 @@
 // repositories/results.repository.js
 const db = require('../db/knex');
-const TABLE = 'evaluation_results';
+const TABLE = 'results';
 
 // ดึงทั้งหมด
 exports.findAll = async () => {
@@ -16,7 +16,7 @@ exports.findById = async (id) => {
 exports.findByEvaluateePeriod = async (evaluateeId, periodId) => {
   return db(TABLE)
     .select(
-      'evaluation_results.*',
+      'results.*',
       'indicators.id as indicator_id',
       'indicators.name_th as indicator_name',
       'indicators.type as indicator_type',
@@ -29,11 +29,11 @@ exports.findByEvaluateePeriod = async (evaluateeId, periodId) => {
       'periods.id as period_id',
       'periods.name_th as period_name'
     )
-    .leftJoin('indicators', 'evaluation_results.indicator_id', 'indicators.id')
-    .leftJoin('evaluation_topics as topics', 'indicators.topic_id', 'topics.id')
-    .leftJoin('users', 'evaluation_results.evaluatee_id', 'users.id')
-    .leftJoin('evaluation_periods as periods', 'evaluation_results.period_id', 'periods.id')
-    .where({ 'evaluation_results.evaluatee_id': evaluateeId, 'evaluation_results.period_id': periodId })
+    .leftJoin('indicators', 'results.indicator_id', 'indicators.id')
+    .leftJoin('topics', 'indicators.topic_id', 'topics.id')
+    .leftJoin('users', 'results.evaluatee_id', 'users.id')
+    .leftJoin('periods', 'results.period_id', 'periods.id')
+    .where({ 'results.evaluatee_id': evaluateeId, 'results.period_id': periodId })
     .orderBy('topics.id', 'asc')
     .orderBy('indicators.id', 'asc');
 };
@@ -178,14 +178,14 @@ exports.saveBulk = async (evaluateeId, periodId, items, scoreType, isSubmitted =
 exports.calculateFinal = async (evaluateeId, periodId) => {
   const results = await db(TABLE)
     .select(
-      'evaluation_results.*',
+      'results.*',
       'indicators.weight',
       'indicators.type',
       'users.name_th as evaluatee_name'
     )
-    .leftJoin('indicators', 'evaluation_results.indicator_id', 'indicators.id')
-    .leftJoin('users', 'evaluation_results.evaluatee_id', 'users.id')
-    .where({ 'evaluation_results.evaluatee_id': evaluateeId, 'evaluation_results.period_id': periodId });
+    .leftJoin('indicators', 'results.indicator_id', 'indicators.id')
+    .leftJoin('users', 'results.evaluatee_id', 'users.id')
+    .where({ 'results.evaluatee_id': evaluateeId, 'results.period_id': periodId });
 
   let totalScore = 0;
   let selfTotal = 0;

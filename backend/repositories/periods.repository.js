@@ -1,6 +1,6 @@
 // repositories/periods.repository.js
 const db = require('../db/knex');
-const TABLE = 'evaluation_periods';
+const TABLE = 'periods';
 
 // ดึงทั้งหมด
 exports.findAll = async () => {
@@ -49,7 +49,7 @@ exports.isActive = async (id) => {
 };
 
 exports.findActive = async () => {
-  return db('evaluation_periods')
+  return db('periods')
     .where({ is_active: 1 })
     .orderBy('buddhist_year', 'desc')
     .orderBy('id', 'desc');

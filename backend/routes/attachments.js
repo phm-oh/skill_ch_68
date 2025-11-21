@@ -13,7 +13,7 @@ router.get(
   "/periods/active",
   authz("evaluatee", "evaluator", "admin"),
   async (req, res) => {
-    const rows = await db("evaluation_periods")
+    const rows = await db("periods")
       .where({ is_active: 1 })
       .orderBy("id", "desc");
     res.json(
@@ -79,7 +79,7 @@ router.post(
       }
 
       // 1) period active
-      const per = await db("evaluation_periods")
+      const per = await db("periods")
         .where({ id: period_id, is_active: 1 })
         .first();
       if (!per) return res.status(404).json({ message: "Period not active" });

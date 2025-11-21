@@ -88,9 +88,9 @@ npm run dev
 ```
 
 ### 4. Test Accounts
-- Admin: `admin@ccollege.ac.th` / `password123`
-- Evaluator: `evaluator1@ccollege.ac.th` / `password123`
-- Evaluatee: `teacher1@ccollege.ac.th` / `password123`
+- Admin: `admin@email.com` / `12345678`
+- Evaluator: `evaluator1@email.com` / `12345678`
+- Evaluatee: `teacher1@email.com` / `12345678`
 
 ---
 

@@ -17,9 +17,6 @@ router.post('/evaluate', requireAuth, ctrl.evaluate);
 router.get('/', requireAuth, ctrl.list);
 router.get('/:id', requireAuth, ctrl.get);
 router.delete('/:id', requireAuth, ctrl.remove);
-router.post('/self', ctrl.submitSelf);
-router.post('/evaluate', ctrl.submitEvaluate);
-router.get('/my-progress', ctrl.getMyProgress);
 
 // ============= ⚠️ ส่วนเพิ่มเติม: Auto-Create Routes =============
 router.post('/init-for-period', requireAuth, ctrl.initResultsForPeriod); // Admin สร้างให้ทุกคน

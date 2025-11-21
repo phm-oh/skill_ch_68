@@ -15,10 +15,6 @@
           รอประเมิน
           <v-badge v-if="counts.pending > 0" :content="counts.pending" color="warning" inline class="ml-2"></v-badge>
         </v-tab>
-        <v-tab value="evaluated">
-          ประเมินแล้ว
-          <v-badge v-if="counts.evaluated > 0" :content="counts.evaluated" color="orange" inline class="ml-2"></v-badge>
-        </v-tab>
         <v-tab value="approved">
           อนุมัติแล้ว
           <v-badge v-if="counts.approved > 0" :content="counts.approved" color="success" inline class="ml-2"></v-badge>
@@ -99,12 +95,10 @@ const combinedData = computed(() => {
 
     if (results.length > 0) {
       const anySubmitted = results.some(r => r.self_score !== null && r.self_score !== undefined);
-      const allEvaluated = results.every(r => r.evaluator_score !== null && r.evaluator_score !== undefined);
       const anyApproved = results.some(r => r.status === 'approved');
 
       console.log(`[AssignmentsList] Status check for ${assignment.evaluatee_name}:`, {
         anySubmitted,
-        allEvaluated,
         anyApproved
       });
 
@@ -114,10 +108,8 @@ const combinedData = computed(() => {
 
       if (anyApproved) {
         evaluationStatus = 'approved';
-      } else if (allEvaluated) {
-        evaluationStatus = 'evaluated';
       } else if (anySubmitted) {
-        evaluationStatus = 'pending'; // Submitted but not evaluated yet
+        evaluationStatus = 'pending'; // Submitted but not approved yet
       }
     }
 
@@ -145,7 +137,6 @@ const filteredItems = computed(() => {
 const counts = computed(() => ({
   all: combinedData.value.length,
   pending: combinedData.value.filter(item => item.evaluation_status === 'pending').length,
-  evaluated: combinedData.value.filter(item => item.evaluation_status === 'evaluated').length,
   approved: combinedData.value.filter(item => item.evaluation_status === 'approved').length
 }));
 

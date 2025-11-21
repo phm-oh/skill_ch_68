@@ -17,16 +17,16 @@ USE skills_db;
 -- ============================================================================
 
 DROP TABLE IF EXISTS signatures;
-DROP TABLE IF EXISTS evaluator_comments;
+DROP TABLE IF EXISTS comments;
 DROP TABLE IF EXISTS attachments;
-DROP TABLE IF EXISTS evaluation_results;
+DROP TABLE IF EXISTS results;
 DROP TABLE IF EXISTS indicator_evidence;
 DROP TABLE IF EXISTS evidence_types;
 DROP TABLE IF EXISTS assignments;
 DROP TABLE IF EXISTS period_topics;
 DROP TABLE IF EXISTS indicators;
-DROP TABLE IF EXISTS evaluation_topics;
-DROP TABLE IF EXISTS evaluation_periods;
+DROP TABLE IF EXISTS topics;
+DROP TABLE IF EXISTS periods;
 DROP TABLE IF EXISTS users;
 
 -- ============================================================================
@@ -48,10 +48,10 @@ CREATE INDEX idx_users_email ON users(email);
 CREATE INDEX idx_users_role ON users(role);
 
 -- ============================================================================
--- 2. ตาราง evaluation_periods
+-- 2. ตาราง periods
 -- ============================================================================
 
-CREATE TABLE evaluation_periods (
+CREATE TABLE periods (
   id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   code VARCHAR(30) NOT NULL UNIQUE,
   name_th VARCHAR(255) NOT NULL,
@@ -63,14 +63,14 @@ CREATE TABLE evaluation_periods (
   updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB;
 
-CREATE INDEX idx_periods_active ON evaluation_periods(is_active);
-CREATE INDEX idx_periods_year ON evaluation_periods(buddhist_year);
+CREATE INDEX idx_periods_active ON periods(is_active);
+CREATE INDEX idx_periods_year ON periods(buddhist_year);
 
 -- ============================================================================
--- 3. ตาราง evaluation_topics
+-- 3. ตาราง topics
 -- ============================================================================
 
-CREATE TABLE evaluation_topics (
+CREATE TABLE topics (
   id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   code VARCHAR(30) NOT NULL UNIQUE,
   title_th VARCHAR(255) NOT NULL,
@@ -90,8 +90,8 @@ CREATE TABLE period_topics (
   topic_id BIGINT UNSIGNED NOT NULL,
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (period_id, topic_id),
-  FOREIGN KEY (period_id) REFERENCES evaluation_periods(id) ON DELETE CASCADE ON UPDATE CASCADE,
-  FOREIGN KEY (topic_id) REFERENCES evaluation_topics(id) ON DELETE CASCADE ON UPDATE CASCADE
+  FOREIGN KEY (period_id) REFERENCES periods(id) ON DELETE CASCADE ON UPDATE CASCADE,
+  FOREIGN KEY (topic_id) REFERENCES topics(id) ON DELETE CASCADE ON UPDATE CASCADE
 ) ENGINE=InnoDB;
 
 -- ============================================================================
@@ -111,7 +111,7 @@ CREATE TABLE indicators (
   active TINYINT(1) NOT NULL DEFAULT 1,
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  FOREIGN KEY (topic_id) REFERENCES evaluation_topics(id) ON DELETE CASCADE ON UPDATE CASCADE,
+  FOREIGN KEY (topic_id) REFERENCES topics(id) ON DELETE CASCADE ON UPDATE CASCADE,
   KEY idx_ind_topic (topic_id)
 ) ENGINE=InnoDB;
 
@@ -149,7 +149,7 @@ CREATE TABLE assignments (
   evaluator_id BIGINT UNSIGNED NOT NULL,
   evaluatee_id BIGINT UNSIGNED NOT NULL,
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  FOREIGN KEY (period_id) REFERENCES evaluation_periods(id) ON DELETE CASCADE ON UPDATE CASCADE,
+  FOREIGN KEY (period_id) REFERENCES periods(id) ON DELETE CASCADE ON UPDATE CASCADE,
   FOREIGN KEY (evaluator_id) REFERENCES users(id) ON DELETE CASCADE ON UPDATE CASCADE,
   FOREIGN KEY (evaluatee_id) REFERENCES users(id) ON DELETE CASCADE ON UPDATE CASCADE,
   KEY idx_assign_evaluator (evaluator_id, period_id),
@@ -158,10 +158,10 @@ CREATE TABLE assignments (
 ) ENGINE=InnoDB;
 
 -- ============================================================================
--- 9. ตาราง evaluation_results
+-- 9. ตาราง results
 -- ============================================================================
 
-CREATE TABLE evaluation_results (
+CREATE TABLE results (
   id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   period_id BIGINT UNSIGNED NOT NULL,
   evaluatee_id BIGINT UNSIGNED NOT NULL,
@@ -184,7 +184,7 @@ CREATE TABLE evaluation_results (
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 
-  FOREIGN KEY (period_id) REFERENCES evaluation_periods(id) ON DELETE CASCADE ON UPDATE CASCADE,
+  FOREIGN KEY (period_id) REFERENCES periods(id) ON DELETE CASCADE ON UPDATE CASCADE,
   FOREIGN KEY (evaluatee_id) REFERENCES users(id) ON DELETE CASCADE ON UPDATE CASCADE,
   FOREIGN KEY (evaluator_id) REFERENCES users(id) ON DELETE SET NULL ON UPDATE CASCADE,
   FOREIGN KEY (indicator_id) REFERENCES indicators(id) ON DELETE RESTRICT ON UPDATE CASCADE,
@@ -210,7 +210,7 @@ CREATE TABLE attachments (
   storage_path VARCHAR(1024) NOT NULL,
   note TEXT NULL,
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  FOREIGN KEY (period_id) REFERENCES evaluation_periods(id) ON DELETE CASCADE ON UPDATE CASCADE,
+  FOREIGN KEY (period_id) REFERENCES periods(id) ON DELETE CASCADE ON UPDATE CASCADE,
   FOREIGN KEY (evaluatee_id) REFERENCES users(id) ON DELETE CASCADE ON UPDATE CASCADE,
   FOREIGN KEY (indicator_id) REFERENCES indicators(id) ON DELETE CASCADE ON UPDATE CASCADE,
   FOREIGN KEY (evidence_type_id) REFERENCES evidence_types(id) ON DELETE RESTRICT ON UPDATE CASCADE,
@@ -230,17 +230,17 @@ CREATE TABLE signatures (
   signature_data TEXT NOT NULL,
   signed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (evaluatee_id) REFERENCES users(id) ON DELETE CASCADE ON UPDATE CASCADE,
-  FOREIGN KEY (period_id) REFERENCES evaluation_periods(id) ON DELETE CASCADE ON UPDATE CASCADE,
+  FOREIGN KEY (period_id) REFERENCES periods(id) ON DELETE CASCADE ON UPDATE CASCADE,
   FOREIGN KEY (evaluator_id) REFERENCES users(id) ON DELETE CASCADE ON UPDATE CASCADE,
   KEY idx_sig_evaluatee (evaluatee_id, period_id),
   UNIQUE KEY uk_sig (evaluatee_id, period_id, evaluator_id)
 ) ENGINE=InnoDB;
 
 -- ============================================================================
--- 12. ตาราง evaluator_comments
+-- 12. ตาราง comments
 -- ============================================================================
 
-CREATE TABLE evaluator_comments (
+CREATE TABLE comments (
   id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   period_id BIGINT UNSIGNED NOT NULL,
   evaluatee_id BIGINT UNSIGNED NOT NULL,
@@ -249,7 +249,7 @@ CREATE TABLE evaluator_comments (
   comment_type ENUM('general','strength','improvement') NOT NULL DEFAULT 'general',
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  FOREIGN KEY (period_id) REFERENCES evaluation_periods(id) ON DELETE CASCADE ON UPDATE CASCADE,
+  FOREIGN KEY (period_id) REFERENCES periods(id) ON DELETE CASCADE ON UPDATE CASCADE,
   FOREIGN KEY (evaluatee_id) REFERENCES users(id) ON DELETE CASCADE ON UPDATE CASCADE,
   FOREIGN KEY (evaluator_id) REFERENCES users(id) ON DELETE CASCADE ON UPDATE CASCADE,
   KEY idx_comment_evaluatee (evaluatee_id, period_id),
@@ -262,43 +262,34 @@ SET FOREIGN_KEY_CHECKS=1;
 -- SEED DATA
 -- ============================================================================
 
--- Users (password: password123)
+-- Users (password: 12345678)
 INSERT INTO users (email, password_hash, name_th, role, status) VALUES
-('admin@ccollege.ac.th', '$2b$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'ผู้ดูแลระบบ', 'admin', 'active'),
-('evaluator1@ccollege.ac.th', '$2b$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'อ.สมชาย ใจดี', 'evaluator', 'active'),
-('evaluator2@ccollege.ac.th', '$2b$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'อ.สมหญิง รักงาน', 'evaluator', 'active'),
-('teacher1@ccollege.ac.th', '$2b$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'ครูไอที 01', 'evaluatee', 'active'),
-('teacher2@ccollege.ac.th', '$2b$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'ครูไอที 02', 'evaluatee', 'active'),
-('teacher3@ccollege.ac.th', '$2b$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'ครูไอที 03', 'evaluatee', 'active');
+('admin@email.com', '$2b$10$4fHfDDhk3e05PFx57MPVLOfwELB9KXnpwm7/CBhN5NtkIKb9N8loq', 'Admin', 'admin', 'active'),
+('evaluator1@email.com', '$2b$10$4fHfDDhk3e05PFx57MPVLOfwELB9KXnpwm7/CBhN5NtkIKb9N8loq', 'Evaluator 1', 'evaluator', 'active'),
+('teacher1@email.com', '$2b$10$4fHfDDhk3e05PFx57MPVLOfwELB9KXnpwm7/CBhN5NtkIKb9N8loq', 'Teacher 1', 'evaluatee', 'active');
 
--- Evaluation Periods
-INSERT INTO evaluation_periods (code, name_th, buddhist_year, start_date, end_date, is_active) VALUES
+-- Periods
+INSERT INTO periods (code, name_th, buddhist_year, start_date, end_date, is_active) VALUES
 ('P2568-1','รอบที่ 1 ปีการศึกษา 2568', 2568, '2025-01-01', '2025-06-30', 1),
 ('P2568-2','รอบที่ 2 ปีการศึกษา 2568', 2568, '2025-07-01', '2025-12-31', 0);
 
--- Evaluation Topics
-INSERT INTO evaluation_topics (code, title_th, description, weight, active) VALUES
-('T01','ด้านการจัดการเรียนการสอน','ประเมินการจัดการเรียนการสอนและพัฒนาหลักสูตร',30.00,1),
-('T02','ด้านการบริหารจัดการ','ประเมินการบริหารจัดการและภาวะผู้นำ',25.00,1),
-('T03','ด้านการพัฒนาตนเอง','ประเมินการพัฒนาตนเองและเพิ่มพูนความรู้',20.00,1),
-('T04','ด้านการบริการวิชาการ','ประเมินการให้บริการวิชาการแก่สังคม',15.00,1),
-('T05','ด้านการวิจัย','ประเมินการทำวิจัยและพัฒนานวัตกรรม',10.00,1);
+-- Topics
+INSERT INTO topics (code, title_th, description, weight, active) VALUES
+('T01','ด้านการจัดการเรียนการสอน','ประเมินการจัดการเรียนการสอนและพัฒนาหลักสูตร',50.00,1),
+('T02','ด้านการพัฒนาตนเอง','ประเมินการพัฒนาตนเองและเพิ่มพูนความรู้',50.00,1);
 
 -- Period-Topics: ผูกทุก topic เข้ากับทุก period
 INSERT INTO period_topics (period_id, topic_id)
 SELECT p.id, t.id
-FROM evaluation_periods p
-CROSS JOIN evaluation_topics t;
+FROM periods p
+CROSS JOIN topics t;
 
 -- Indicators
 INSERT INTO indicators (topic_id, code, name_th, description, type, weight, min_score, max_score, active) VALUES
 (1,'IND-T01-01','จัดทำแผนการสอนครบถ้วน','มีแผนการสอนที่สมบูรณ์ ครอบคลุมเนื้อหาตามหลักสูตร','score_1_4',5.00,1,4,1),
 (1,'IND-T01-02','ใช้สื่อการสอนที่หลากหลาย','มีการใช้สื่อการสอนที่เหมาะสมและทันสมัย','score_1_4',5.00,1,4,1),
-(1,'IND-T01-03','ผลการเรียนนักเรียนผ่านเกณฑ์','นักเรียนมีผลการเรียนผ่านเกณฑ์ไม่น้อยกว่า 80%','yes_no',5.00,0,1,1),
-(2,'IND-T02-01','เข้าร่วมประชุมครบถ้วน','เข้าร่วมประชุมครบตามกำหนด','yes_no',5.00,0,1,1),
-(2,'IND-T02-02','ปฏิบัติงานตามหน้าที่','ปฏิบัติงานตามที่ได้รับมอบหมายอย่างมีประสิทธิภาพ','score_1_4',5.00,1,4,1),
-(3,'IND-T03-01','อบรมพัฒนาตนเอง','เข้าร่วมอบรมพัฒนาตนเองไม่น้อยกว่า 20 ชั่วโมง/ปี','score_1_4',5.00,1,4,1),
-(3,'IND-T03-02','ศึกษาต่อระดับสูงขึ้น','มีการศึกษาต่อหรือพัฒนาวุฒิการศึกษา','yes_no',5.00,0,1,1);
+(2,'IND-T02-01','อบรมพัฒนาตนเอง','เข้าร่วมอบรมพัฒนาตนเองไม่น้อยกว่า 20 ชั่วโมง/ปี','score_1_4',5.00,1,4,1),
+(2,'IND-T02-02','ศึกษาต่อระดับสูงขึ้น','มีการศึกษาต่อหรือพัฒนาวุฒิการศึกษา','yes_no',5.00,0,1,1);
 
 -- Evidence Types
 INSERT INTO evidence_types (code, name_th, description) VALUES
@@ -310,30 +301,27 @@ INSERT INTO evidence_types (code, name_th, description) VALUES
 
 -- Indicator-Evidence Mapping
 INSERT INTO indicator_evidence (indicator_id, evidence_type_id) VALUES
-(1,1), (2,2), (2,5), (3,3), (4,3), (5,3), (5,2), (6,4), (7,3);
+(1,1), (2,2), (2,5), (3,4), (4,3);
 
 -- Assignments
 INSERT INTO assignments (period_id, evaluator_id, evaluatee_id) VALUES
-(1, 2, 4),
-(1, 3, 4),
-(1, 2, 5),
-(1, 3, 6);
+(1, 2, 3);
 
 -- ============================================================================
 -- สรุปโครงสร้าง (12 ตาราง)
 -- ============================================================================
 -- 1. users - ผู้ใช้งาน
--- 2. evaluation_periods - รอบการประเมิน
--- 3. evaluation_topics - หัวข้อการประเมิน
+-- 2. periods - รอบการประเมิน
+-- 3. topics - หัวข้อการประเมิน
 -- 4. period_topics - เชื่อม period-topic (Many-to-Many)
 -- 5. indicators - ตัวชี้วัด
 -- 6. evidence_types - ประเภทหลักฐาน
 -- 7. indicator_evidence - เชื่อม indicator-evidence
 -- 8. assignments - มอบหมายงาน
--- 9. evaluation_results - ผลการประเมิน
+-- 9. results - ผลการประเมิน
 -- 10. attachments - ไฟล์แนบ
 -- 11. signatures - ลายเซ็น
--- 12. evaluator_comments - ความคิดเห็นกรรมการ
+-- 12. comments - ความคิดเห็นกรรมการ
 -- ============================================================================
 
 SELECT 'Clean schema created successfully!' AS status;

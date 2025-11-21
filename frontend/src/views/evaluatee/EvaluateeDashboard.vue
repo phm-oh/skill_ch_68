@@ -16,15 +16,6 @@
         <base-card :title="`รอบการประเมิน: ${period.name_th || period.name}`" icon="mdi-calendar-clock">
           <v-row>
             <v-col cols="12" md="8">
-              <div class="mb-3">
-                <div class="d-flex justify-space-between mb-2">
-                  <span class="text-subtitle-1">ความคืบหน้าการประเมิน</span>
-                  <span class="text-subtitle-2">{{ getProgress(period.id).completed }} / {{ getProgress(period.id).total }} ตัวชี้วัด</span>
-                </div>
-                <v-progress-linear :model-value="getProgressPercentage(period.id)" height="25" color="success" striped>
-                  <template v-slot:default><strong>{{ getProgressPercentage(period.id) }}%</strong></template>
-                </v-progress-linear>
-              </div>
               <div class="d-flex gap-4 align-center">
                 <div><v-icon icon="mdi-calendar-start" size="small"></v-icon> เริ่ม: {{ formatDate(period.start_date) }}</div>
                 <div><v-icon icon="mdi-calendar-end" size="small"></v-icon> สิ้นสุด: {{ formatDate(period.end_date) }}</div>
@@ -81,10 +72,10 @@ import { useAuthStore } from '@/stores/auth';
 import { useNotificationStore } from '@/stores/notification';
 import assignmentService from '@/services/assignmentService';
 import evaluationService from '@/services/evaluationService';
-import topicService from '@/services/topicService';
 import BaseCard from '@/components/base/BaseCard.vue';
 import LoadingOverlay from '@/components/base/LoadingOverlay.vue';
 import StatusChip from '@/components/base/StatusChip.vue';
+import { formatDate, getDaysRemaining } from '@/utils/helpers';
 
 const router = useRouter();
 const authStore = useAuthStore();
@@ -93,7 +84,6 @@ const notificationStore = useNotificationStore();
 const loading = ref(false);
 const activePeriods = ref([]);
 const evaluationData = ref({});
-const topicsData = ref({});
 
 const quickActions = [
   { title: 'ประเมินตนเอง', icon: 'mdi-clipboard-check', color: 'primary', path: '/evaluatee/evaluation', description: 'กรอกแบบประเมินตนเอง' },
@@ -130,22 +120,6 @@ const fetchData = async () => {
         const evalRes = await evaluationService.getMyResults(period.id);
         const results = evalRes.data.items || evalRes.data.data || [];
         evaluationData.value[period.id] = { status: determineStatus(results), results };
-
-        // ดึง topics ตาม period_id จาก backend (ผ่าน period_topics table)
-        const topicsRes = await topicService.getAll(period.id);
-        const periodTopics = topicsRes.data.items || topicsRes.data.data || [];
-
-        let totalIndicators = 0;
-        let completedIndicators = 0;
-
-        for (const topic of periodTopics) {
-          const indicators = topic.indicators || [];
-          totalIndicators += indicators.length;
-          completedIndicators += results.filter(r =>
-            indicators.some(ind => ind.id === r.indicator_id) && r.self_score !== null
-          ).length;
-        }
-        topicsData.value[period.id] = { total: totalIndicators, completed: completedIndicators };
       } catch (err) {
         console.error(`Error fetching data for period ${period.id}:`, err);
       }
@@ -168,21 +142,7 @@ const determineStatus = (results) => {
   return 'draft';
 };
 
-const getProgress = (periodId) => topicsData.value[periodId] || { total: 0, completed: 0 };
-
-const getProgressPercentage = (periodId) => {
-  const progress = getProgress(periodId);
-  return progress.total === 0 ? 0 : Math.round((progress.completed / progress.total) * 100);
-};
-
 const getEvaluationStatus = (periodId) => evaluationData.value[periodId]?.status || 'draft';
-
-const getDaysRemaining = (endDate) => {
-  const diffDays = Math.ceil((new Date(endDate) - new Date()) / (1000 * 60 * 60 * 24));
-  return diffDays > 0 ? diffDays : 0;
-};
-
-const formatDate = (date) => new Date(date).toLocaleDateString('th-TH', { year: 'numeric', month: 'long', day: 'numeric' });
 
 const handleLogout = async () => { await authStore.logout(); };
 

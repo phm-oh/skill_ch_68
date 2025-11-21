@@ -37,7 +37,7 @@ exports.findAll = async () => {
     )
     .leftJoin('users as evaluator', 'assignments.evaluator_id', 'evaluator.id')
     .leftJoin('users as evaluatee', 'assignments.evaluatee_id', 'evaluatee.id')
-    .leftJoin('evaluation_periods as periods', 'assignments.period_id', 'periods.id')
+    .leftJoin('periods', 'assignments.period_id', 'periods.id')
     .orderBy('assignments.created_at', 'desc');
 };
 
@@ -55,7 +55,7 @@ exports.findByEvaluator = async (evaluatorId) => {
       'periods.name_th as period_name'
     )
     .leftJoin('users as evaluatee', 'assignments.evaluatee_id', 'evaluatee.id')
-    .leftJoin('evaluation_periods as periods', 'assignments.period_id', 'periods.id')
+    .leftJoin('periods', 'assignments.period_id', 'periods.id')
     .where('assignments.evaluator_id', evaluatorId)
     .orderBy('assignments.created_at', 'desc');
 };
@@ -77,7 +77,7 @@ exports.findByEvaluatee = async (evaluateeId, periodId = null) => {
       'periods.is_active'
     )
     .leftJoin('users as evaluator', 'assignments.evaluator_id', 'evaluator.id')
-    .leftJoin('evaluation_periods as periods', 'assignments.period_id', 'periods.id')
+    .leftJoin('periods', 'assignments.period_id', 'periods.id')
     .where('assignments.evaluatee_id', evaluateeId);
 
   if (periodId) query = query.andWhere('assignments.period_id', periodId);

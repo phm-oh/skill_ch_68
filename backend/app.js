@@ -17,13 +17,6 @@ app.use(cors({ origin: process.env.CORS_ORIGIN ? process.env.CORS_ORIGIN.split('
 app.use(express.urlencoded({ extended: true }));  // ใส่คู่กับ express.json()
 app.use(express.json());
 app.use(morgan("dev"));
-app.get('/oh',function(req,res){ 
-  console.log("req=",req.query)
-    res.send({
-      status: 'Hello World oak!',
-      data: req.query
-      })
-});
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 app.use("/public", express.static(path.join(__dirname, "public")));
 
@@ -90,6 +83,5 @@ app.use((req, res, next) => {
 // Error handler
 const error = require("./middlewares/error");
 app.use(error);
-// console.log(module);// Debug: log the module object to see its properties
 
 module.exports = app;

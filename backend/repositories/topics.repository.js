@@ -1,7 +1,7 @@
 // backend/repositories/topics.repository.js
-// Repository สำหรับจัดการหัวข้อการประเมิน (evaluation_topics)
+// Repository สำหรับจัดการหัวข้อการประเมิน (topics)
 const db = require('../db/knex');
-const TABLE = 'evaluation_topics';
+const TABLE = 'topics';
 
 // ดึงทั้งหมด (รองรับ filter ตาม period_id)
 exports.findAll = async (periodId = null) => {

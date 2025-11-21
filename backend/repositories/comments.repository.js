@@ -1,36 +1,36 @@
 // backend/repositories/comments.repository.js
 // Repository สำหรับจัดการความคิดเห็นกรรมการ
 const db = require('../db/knex');
-const TABLE = 'evaluator_comments';
+const TABLE = 'comments';
 
 // ดึงทั้งหมด
 exports.findAll = async () => {
   return db(TABLE)
     .select(
-      'evaluator_comments.*',
+      'comments.*',
       'evaluator.name_th as evaluator_name',
       'evaluatee.name_th as evaluatee_name',
       'periods.name_th as period_name'
     )
-    .leftJoin('users as evaluator', 'evaluator_comments.evaluator_id', 'evaluator.id')
-    .leftJoin('users as evaluatee', 'evaluator_comments.evaluatee_id', 'evaluatee.id')
-    .leftJoin('evaluation_periods as periods', 'evaluator_comments.period_id', 'periods.id')
-    .orderBy('evaluator_comments.created_at', 'desc');
+    .leftJoin('users as evaluator', 'comments.evaluator_id', 'evaluator.id')
+    .leftJoin('users as evaluatee', 'comments.evaluatee_id', 'evaluatee.id')
+    .leftJoin('periods', 'comments.period_id', 'periods.id')
+    .orderBy('comments.created_at', 'desc');
 };
 
 // ดึงรายการเดียว
 exports.findById = async (id) => {
   return db(TABLE)
     .select(
-      'evaluator_comments.*',
+      'comments.*',
       'evaluator.name_th as evaluator_name',
       'evaluatee.name_th as evaluatee_name',
       'periods.name_th as period_name'
     )
-    .leftJoin('users as evaluator', 'evaluator_comments.evaluator_id', 'evaluator.id')
-    .leftJoin('users as evaluatee', 'evaluator_comments.evaluatee_id', 'evaluatee.id')
-    .leftJoin('evaluation_periods as periods', 'evaluator_comments.period_id', 'periods.id')
-    .where('evaluator_comments.id', id)
+    .leftJoin('users as evaluator', 'comments.evaluator_id', 'evaluator.id')
+    .leftJoin('users as evaluatee', 'comments.evaluatee_id', 'evaluatee.id')
+    .leftJoin('periods', 'comments.period_id', 'periods.id')
+    .where('comments.id', id)
     .first();
 };
 
@@ -38,43 +38,43 @@ exports.findById = async (id) => {
 exports.findByEvaluateeAndPeriod = async (evaluateeId, periodId) => {
   return db(TABLE)
     .select(
-      'evaluator_comments.*',
+      'comments.*',
       'evaluator.name_th as evaluator_name'
     )
-    .leftJoin('users as evaluator', 'evaluator_comments.evaluator_id', 'evaluator.id')
+    .leftJoin('users as evaluator', 'comments.evaluator_id', 'evaluator.id')
     .where({
-      'evaluator_comments.evaluatee_id': evaluateeId,
-      'evaluator_comments.period_id': periodId
+      'comments.evaluatee_id': evaluateeId,
+      'comments.period_id': periodId
     })
-    .orderBy('evaluator_comments.created_at', 'desc');
+    .orderBy('comments.created_at', 'desc');
 };
 
 // ดึงตาม evaluator_id
 exports.findByEvaluator = async (evaluatorId) => {
   return db(TABLE)
     .select(
-      'evaluator_comments.*',
+      'comments.*',
       'evaluatee.name_th as evaluatee_name',
       'periods.name_th as period_name'
     )
-    .leftJoin('users as evaluatee', 'evaluator_comments.evaluatee_id', 'evaluatee.id')
-    .leftJoin('evaluation_periods as periods', 'evaluator_comments.period_id', 'periods.id')
-    .where('evaluator_comments.evaluator_id', evaluatorId)
-    .orderBy('evaluator_comments.created_at', 'desc');
+    .leftJoin('users as evaluatee', 'comments.evaluatee_id', 'evaluatee.id')
+    .leftJoin('periods', 'comments.period_id', 'periods.id')
+    .where('comments.evaluator_id', evaluatorId)
+    .orderBy('comments.created_at', 'desc');
 };
 
 // ดึงตาม period_id
 exports.findByPeriod = async (periodId) => {
   return db(TABLE)
     .select(
-      'evaluator_comments.*',
+      'comments.*',
       'evaluator.name_th as evaluator_name',
       'evaluatee.name_th as evaluatee_name'
     )
-    .leftJoin('users as evaluator', 'evaluator_comments.evaluator_id', 'evaluator.id')
-    .leftJoin('users as evaluatee', 'evaluator_comments.evaluatee_id', 'evaluatee.id')
-    .where('evaluator_comments.period_id', periodId)
-    .orderBy('evaluator_comments.created_at', 'desc');
+    .leftJoin('users as evaluator', 'comments.evaluator_id', 'evaluator.id')
+    .leftJoin('users as evaluatee', 'comments.evaluatee_id', 'evaluatee.id')
+    .where('comments.period_id', periodId)
+    .orderBy('comments.created_at', 'desc');
 };
 
 // สร้างใหม่

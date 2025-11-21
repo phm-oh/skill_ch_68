@@ -3,23 +3,6 @@
 const db = require('../db/knex');
 const TABLE = 'signatures';
 
-// ดึงทั้งหมด
-exports.findAll = async () => {
-  return db(TABLE)
-    .select('signatures.*', 'users.name_th as evaluator_name')
-    .leftJoin('users', 'signatures.evaluator_id', 'users.id')
-    .orderBy('signatures.signed_at', 'desc');
-};
-
-// ดึงรายการเดียว
-exports.findById = async (id) => {
-  return db(TABLE)
-    .select('signatures.*', 'users.name_th as evaluator_name')
-    .leftJoin('users', 'signatures.evaluator_id', 'users.id')
-    .where('signatures.id', id)
-    .first();
-};
-
 // ดึงตาม evaluatee_id และ period_id
 exports.findByEvaluateeAndPeriod = async (evaluateeId, periodId) => {
   try {
@@ -47,14 +30,6 @@ exports.findByEvaluateeAndPeriod = async (evaluateeId, periodId) => {
   }
 };
 
-// ดึงตาม evaluator_id
-exports.findByEvaluator = async (evaluatorId) => {
-  return db(TABLE)
-    .select('signatures.*')
-    .where({ evaluator_id: evaluatorId })
-    .orderBy('signed_at', 'desc');
-};
-
 // ตรวจสอบว่ามีลายเซ็นแล้วหรือไม่
 exports.exists = async (evaluateeId, periodId, evaluatorId) => {
   const row = await db(TABLE)
@@ -76,10 +51,6 @@ exports.create = async (payload) => {
   }
 
   const [id] = await db(TABLE).insert(payload);
-  return exports.findById(id);
-};
-
-// ลบ
-exports.remove = async (id) => {
-  return db(TABLE).where({ id }).del();
+  return exports.findByEvaluateeAndPeriod(payload.evaluatee_id, payload.period_id)
+    .then(results => results.find(r => r.id === id));
 };

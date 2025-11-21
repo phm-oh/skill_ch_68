@@ -16,8 +16,8 @@ function relFromUploads(absPath) {
     .replace(/\\/g, '/');
 }
 async function isPeriodActive(period_id) {
-  const row = await db('evaluation_periods').where({ id: period_id, is_active: 1 }).first(); 
-  // return row or undefined หมายความว่า period_id ที่ส่งมา ต้องเป็นเลข และต้องมีในตาราง evaluation_periods และ is_active=1  เพื่อให้ period นั้นเปิดอยู่
+  const row = await db('periods').where({ id: period_id, is_active: 1 }).first(); 
+  // return row or undefined หมายความว่า period_id ที่ส่งมา ต้องเป็นเลข และต้องมีในตาราง periods และ is_active=1  เพื่อให้ period นั้นเปิดอยู่
   return !!row;
 }
 
@@ -50,7 +50,7 @@ exports.uploadEvidence = async (req, res, next) => {
     if (!okAssign) return res.status(400).json({ success:false, message:'evaluatee not assigned in the period' });
 
     // ตรวจสอบว่า period มีอยู่จริง (ไม่ต้องเช็ค is_active เพราะถ้าถูก assign แล้วควรให้ upload ได้)
-    const periodExists = await db('evaluation_periods').where({ id: Number(period_id) }).first();
+    const periodExists = await db('periods').where({ id: Number(period_id) }).first();
     if (!periodExists) {
       return res.status(404).json({ success:false, message:'period not found' });
     }

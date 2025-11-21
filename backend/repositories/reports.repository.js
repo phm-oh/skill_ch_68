@@ -13,13 +13,13 @@ exports.getIndividualSummary = async (evaluateeId, periodId) => {
   if (!evaluatee) return null;
 
   // ข้อมูลรอบประเมิน
-  const period = await db('evaluation_periods')
+  const period = await db('periods')
     .select('id', 'name_th', 'start_date', 'end_date')
     .where('id', periodId)
     .first();
 
   // ผลการประเมินแต่ละตัวชี้วัด
-  const results = await db('evaluation_results as er')
+  const results = await db('results as er')
     .select(
       'er.*',
       'i.name_th as indicator_name',
@@ -30,7 +30,7 @@ exports.getIndividualSummary = async (evaluateeId, periodId) => {
       'evaluator.name_th as evaluator_name'
     )
     .leftJoin('indicators as i', 'er.indicator_id', 'i.id')
-    .leftJoin('evaluation_topics as t', 'i.topic_id', 't.id')
+    .leftJoin('topics as t', 'i.topic_id', 't.id')
     .leftJoin('users as evaluator', 'er.evaluator_id', 'evaluator.id')
     .where('er.evaluatee_id', evaluateeId)
     .where('er.period_id', periodId)
@@ -38,15 +38,15 @@ exports.getIndividualSummary = async (evaluateeId, periodId) => {
     .orderBy('i.id', 'asc');
 
   // ความคิดเห็นจากกรรมการ
-  const comments = await db('evaluator_comments')
+  const comments = await db('comments')
     .select(
-      'evaluator_comments.*',
+      'comments.*',
       'users.name_th as evaluator_name'
     )
-    .leftJoin('users', 'evaluator_comments.evaluator_id', 'users.id')
-    .where('evaluator_comments.evaluatee_id', evaluateeId)
-    .where('evaluator_comments.period_id', periodId)
-    .orderBy('evaluator_comments.created_at', 'desc');
+    .leftJoin('users', 'comments.evaluator_id', 'users.id')
+    .where('comments.evaluatee_id', evaluateeId)
+    .where('comments.period_id', periodId)
+    .orderBy('comments.created_at', 'desc');
 
   // ลายเซ็นกรรมการ
   let signatures = [];
@@ -102,7 +102,7 @@ exports.getIndividualSummary = async (evaluateeId, periodId) => {
 // สรุปผลรวมทั้งหมด (ภาพรวม)
 exports.getOverallSummary = async (periodId) => {
   // ใช้ calculateFinal เพื่อคำนวณคะแนนรวมที่ถูกต้อง
-  const allResults = await db('evaluation_results as er')
+  const allResults = await db('results as er')
     .select('er.evaluatee_id', 'u.name_th as evaluatee_name')
     .leftJoin('users as u', 'er.evaluatee_id', 'u.id')
     .where('er.period_id', periodId)
@@ -129,7 +129,7 @@ exports.getOverallSummary = async (periodId) => {
 
 // สรุปตามหัวข้อการประเมิน
 exports.getTopicSummary = async (periodId) => {
-  const summary = await db('evaluation_results as er')
+  const summary = await db('results as er')
     .select(
       't.id as topic_id',
       't.title_th as topic_name',
@@ -139,7 +139,7 @@ exports.getTopicSummary = async (periodId) => {
     .avg('er.self_score as avg_self_score')
     .avg('er.evaluator_score as avg_evaluator_score')
     .leftJoin('indicators as i', 'er.indicator_id', 'i.id')
-    .leftJoin('evaluation_topics as t', 'i.topic_id', 't.id')
+    .leftJoin('topics as t', 'i.topic_id', 't.id')
     .where('er.period_id', periodId)
     .groupBy('t.id', 't.title_th', 't.weight')
     .orderBy('t.id', 'asc');

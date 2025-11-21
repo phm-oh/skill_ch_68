@@ -9,9 +9,9 @@ exports.findAll = async () => {
   return db(TABLE)
     .select(
       'indicators.*',
-      'evaluation_topics.title_th as topic_name'
+      'topics.title_th as topic_name'
     )
-    .leftJoin('evaluation_topics', 'indicators.topic_id', 'evaluation_topics.id')
+    .leftJoin('topics', 'indicators.topic_id', 'topics.id')
     .orderBy('indicators.topic_id', 'asc')
     .orderBy('indicators.id', 'asc');
 };
@@ -26,9 +26,9 @@ exports.findByTopic = async (topicId) => {
   return db(TABLE)
     .select(
       'indicators.*',
-      'evaluation_topics.title_th as topic_name'
+      'topics.title_th as topic_name'
     )
-    .leftJoin('evaluation_topics', 'indicators.topic_id', 'evaluation_topics.id')
+    .leftJoin('topics', 'indicators.topic_id', 'topics.id')
     .where('indicators.topic_id', topicId)
     .orderBy('indicators.id', 'asc');
 };
@@ -38,9 +38,9 @@ exports.findByType = async (type) => {
   return db(TABLE)
     .select(
       'indicators.*',
-      'evaluation_topics.title_th as topic_name'
+      'topics.title_th as topic_name'
     )
-    .leftJoin('evaluation_topics', 'indicators.topic_id', 'evaluation_topics.id')
+    .leftJoin('topics', 'indicators.topic_id', 'topics.id')
     .where('indicators.type', type)
     .orderBy('indicators.topic_id', 'asc')
     .orderBy('indicators.id', 'asc');
