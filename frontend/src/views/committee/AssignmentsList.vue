@@ -37,10 +37,6 @@
         </v-chip>
       </template>
 
-      <template #item.evaluation_status="{ item }">
-        <StatusChip :status="item.evaluation_status" size="small" />
-      </template>
-
       <template #item.actions="{ item }">
         <v-btn
           color="primary"
@@ -77,7 +73,6 @@ const headers = [
   { title: 'ชื่อ-สกุล', key: 'full_name', sortable: true },
   { title: 'รอบการประเมิน', key: 'period_name', sortable: true },
   { title: 'สถานะการส่งงาน', key: 'submission_status', sortable: true, align: 'center' },
-  { title: 'สถานะการประเมิน', key: 'evaluation_status', sortable: true, align: 'center' },
   { title: 'จัดการ', key: 'actions', sortable: false, align: 'center' }
 ];
 

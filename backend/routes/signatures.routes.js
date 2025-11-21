@@ -8,7 +8,6 @@ const auth = require('../middlewares/auth');
 router.use(auth());
 
 // Routes (เรียงตาม path ที่เฉพาะเจาะจงก่อน)
-router.get('/result/:resultId', ctrl.getByResult);
 router.get('/evaluatee/:evaluateeId/:periodId', ctrl.getByEvaluateeAndPeriod);
 router.get('/evaluator/:evaluatorId', ctrl.getByEvaluator);
 router.get('/', ctrl.list);

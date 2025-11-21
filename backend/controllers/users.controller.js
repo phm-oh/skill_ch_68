@@ -319,7 +319,7 @@ exports.getByRole = async (req, res, next) => {
 
     // ⭐ FIX: ไม่ filter ด้วย status เพราะอาจทำให้ดึง users ไม่ได้
     const rows = await db("users")
-      .select("id", "name_th", "email", "role", "department_id")
+      .select("id", "name_th", "email", "role")
       .where({ role })
       .orderBy("name_th", "asc");
 

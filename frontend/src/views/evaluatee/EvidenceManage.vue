@@ -90,6 +90,7 @@ import { useNotificationStore } from '@/stores/notification';
 import periodService from '@/services/periodService';
 import topicService from '@/services/topicService';
 import uploadService from '@/services/uploadService';
+import assignmentService from '@/services/assignmentService';
 import BaseCard from '@/components/base/BaseCard.vue';
 import EvidenceUpload from '@/components/common/EvidenceUpload.vue';
 import LoadingOverlay from '@/components/base/LoadingOverlay.vue';
@@ -106,19 +107,29 @@ const fileToDelete = ref(null);
 
 const fetchPeriods = async () => {
   try {
-    const [periodsRes, activeRes] = await Promise.all([
-      periodService.getAll(),
-      periodService.getActive()
-    ]);
-    // Backend ส่ง { success: true, items: [...] }
-    periods.value = periodsRes.data.items || periodsRes.data.data || [];
-    const activePeriods = activeRes.data.items || activeRes.data.data || [];
-    const activePeriod = activePeriods[0] || null;
-    if (activePeriod) {
-      selectedPeriodId.value = activePeriod.id;
+    // ดึง periods ที่ user ถูก assign เท่านั้น
+    const assignmentsRes = await assignmentService.getMine();
+    const assignments = assignmentsRes.data.items || assignmentsRes.data.data || [];
+    
+    // ดึง period IDs ที่ user ถูก assign
+    const assignedPeriodIds = [...new Set(assignments.map(a => a.period_id))];
+    
+    // ดึงข้อมูล periods ทั้งหมด
+    const periodsRes = await periodService.getAll();
+    const allPeriods = periodsRes.data.items || periodsRes.data.data || [];
+    
+    // Filter เฉพาะ periods ที่ user ถูก assign และ is_active = 1
+    periods.value = allPeriods.filter(p => 
+      assignedPeriodIds.includes(p.id) && p.is_active === 1
+    );
+    
+    // เลือก period แรกที่ถูก assign และ active
+    if (periods.value.length > 0) {
+      selectedPeriodId.value = periods.value[0].id;
       await loadTopicsAndIndicators();
     }
   } catch (error) {
+    console.error('[EvidenceManage] Error fetching periods:', error);
     notificationStore.error('ไม่สามารถโหลดรอบการประเมินได้');
   }
 };
@@ -137,8 +148,10 @@ const loadTopicsAndIndicators = async () => {
     }
     topics.value = allTopics;
 
+    // Filter files เฉพาะ period ที่เลือก
     const res = await uploadService.getMine();
-    uploadedFiles.value = res.data.items || res.data.data || [];
+    const allFiles = res.data.items || res.data.data || [];
+    uploadedFiles.value = allFiles.filter(f => f.period_id === selectedPeriodId.value);
   } catch (error) {
     notificationStore.error('ไม่สามารถโหลดข้อมูลได้');
   } finally {
@@ -150,7 +163,9 @@ const getIndicatorFiles = (indicatorId) => uploadedFiles.value.filter(f => f.ind
 
 const handleFileUploaded = async () => {
   const res = await uploadService.getMine();
-  uploadedFiles.value = res.data.items || res.data.data || [];
+  const allFiles = res.data.items || res.data.data || [];
+  // Filter files เฉพาะ period ที่เลือก
+  uploadedFiles.value = allFiles.filter(f => f.period_id === selectedPeriodId.value);
   notificationStore.success('อัปโหลดไฟล์สำเร็จ');
 };
 

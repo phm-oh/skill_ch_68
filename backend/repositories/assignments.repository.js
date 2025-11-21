@@ -122,20 +122,27 @@ exports.createBulk = async (items) => {
   const skipped = [];
 
   for (const item of items) {
-    const exists = await exports.hasPairInPeriod({
+    // Filter out fields ที่ไม่ต้องการ (เช่น role_type ที่ไม่มีใน schema)
+    const cleanItem = {
       period_id: item.period_id,
       evaluator_id: item.evaluator_id,
       evaluatee_id: item.evaluatee_id
+    };
+
+    const exists = await exports.hasPairInPeriod({
+      period_id: cleanItem.period_id,
+      evaluator_id: cleanItem.evaluator_id,
+      evaluatee_id: cleanItem.evaluatee_id
     });
 
     if (exists) {
       skipped.push({
-        evaluator_id: item.evaluator_id,
-        evaluatee_id: item.evaluatee_id,
+        evaluator_id: cleanItem.evaluator_id,
+        evaluatee_id: cleanItem.evaluatee_id,
         reason: 'already exists'
       });
     } else {
-      const [id] = await db(TABLE).insert(item);
+      const [id] = await db(TABLE).insert(cleanItem);
       created.push(id);
     }
   }

@@ -183,12 +183,27 @@ const fetchReportData = async () => {
     // Fetch summary for each evaluatee
     const summaryPromises = evaluateeIds.map(evaluateeId =>
       evaluationService.getSummary(evaluateeId, selectedPeriod.value)
-        .then(res => ({
-          evaluatee_id: evaluateeId,
-          evaluatee_name: res.data.data?.evaluatee_name || '-',
-          total_score: res.data.data?.total_score || res.data.data?.evaluator_total || 0,
-          status: res.data.data?.status || 'draft'
-        }))
+        .then(res => {
+          // คะแนนที่ได้จาก calculateFinal คือคะแนนรวมที่คำนวณแล้ว (ไม่ต้องหาร 100)
+          // แต่ถ้าคะแนนเกิน 100 อาจต้อง normalize
+          let totalScore = res.data.data?.total_score || res.data.data?.evaluator_total || 0;
+          
+          // ถ้าคะแนนเกิน 100 อาจเป็นเพราะคำนวณผิด ให้ normalize
+          // แต่ถ้าคะแนนถูกต้องแล้ว (เช่น 18.75) ก็ใช้ตามนั้น
+          // ตรวจสอบจาก total_weight ถ้ามี
+          const totalWeight = res.data.data?.total_weight || 100;
+          if (totalWeight > 0 && totalScore > totalWeight) {
+            // ถ้าคะแนนเกิน weight ให้ normalize
+            totalScore = (totalScore / totalWeight) * 100;
+          }
+          
+          return {
+            evaluatee_id: evaluateeId,
+            evaluatee_name: res.data.data?.evaluatee_name || '-',
+            total_score: totalScore,
+            status: res.data.data?.status || 'draft'
+          };
+        })
         .catch(err => {
           console.error(`[ReportsView] Error fetching summary for ${evaluateeId}:`, err);
           return {

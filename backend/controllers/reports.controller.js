@@ -43,24 +43,6 @@ exports.getOverallSummary = async (req, res, next) => {
   }
 };
 
-// GET /api/reports/department/:departmentId/:periodId
-// สรุปผลตามแผนก/หน่วยงาน
-exports.getDepartmentSummary = async (req, res, next) => {
-  try {
-    const { departmentId, periodId } = req.params;
-    
-    const items = await reportsRepo.getDepartmentSummary(departmentId, periodId);
-    
-    res.json({ 
-      success: true, 
-      items, 
-      total: items.length 
-    });
-  } catch (e) {
-    next(e);
-  }
-};
-
 // GET /api/reports/topics/:periodId
 // สรุปคะแนนตามหัวข้อประเมิน
 exports.getTopicSummary = async (req, res, next) => {

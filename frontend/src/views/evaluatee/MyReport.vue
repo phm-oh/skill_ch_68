@@ -90,9 +90,16 @@
             </v-card-title>
             <v-card-text>
               <div v-if="signature" class="pa-4 bg-grey-lighten-5 rounded">
-                <pre class="signature-text">{{ signature.signature_data }}</pre>
-                <div class="text-caption text-grey mt-2">
-                  ลงนามเมื่อ: {{ formatDateTime(signature.signed_at) }}
+                <div class="text-body-2 mb-2">
+                  <div v-if="signature.evaluator_name || getEvaluatorNameFromData(signature)">
+                    <strong>ลงนามโดย:</strong> {{ signature.evaluator_name || getEvaluatorNameFromData(signature) }}
+                  </div>
+                  <div>
+                    <strong>ตำแหน่ง:</strong> กรรมการประเมิน
+                  </div>
+                  <div>
+                    <strong>ลงนามเมื่อ:</strong> {{ formatDateTime(signature.signed_at) }}
+                  </div>
                 </div>
               </div>
               <v-alert v-else type="info" variant="tonal">
@@ -205,6 +212,9 @@ const fetchReportData = async () => {
       const signatures = signatureRes.data.items || signatureRes.data.data || [];
       signature.value = signatures.length > 0 ? signatures[0] : null;
       console.log('[MyReport] Signature:', signature.value);
+      console.log('[MyReport] Signature evaluator_name:', signature.value?.evaluator_name);
+      console.log('[MyReport] Signature evaluator_id:', signature.value?.evaluator_id);
+      console.log('[MyReport] Signature signature_data:', signature.value?.signature_data);
     } catch (error) {
       console.log('[MyReport] No signature found or error:', error);
       signature.value = null;
@@ -221,6 +231,24 @@ const getDifferenceColor = (diff) => !diff ? 'grey' : diff > 0 ? 'success' : 'er
 const getStatusColor = (s) => ({ evaluated: 'success', pending: 'warning', draft: 'grey' }[s] || 'grey');
 const getStatusText = (s) => ({ evaluated: 'ประเมินแล้ว', pending: 'รอการประเมิน', draft: 'ร่าง' }[s] || s);
 
+// ดึงชื่อกรรมการจาก signature_data (fallback ถ้า evaluator_name ไม่มี)
+const getEvaluatorNameFromData = (sig) => {
+  if (!sig || !sig.signature_data) return null;
+  
+  try {
+    const lines = sig.signature_data.split('\n');
+    const nameLine = lines.find(line => line.includes('ลงนามโดย:'));
+    if (nameLine) {
+      const name = nameLine.replace('ลงนามโดย:', '').trim();
+      if (name && name !== 'undefined' && name !== 'null') return name;
+    }
+  } catch (e) {
+    console.error('[MyReport] Error parsing signature_data:', e);
+  }
+  
+  return null;
+};
+
 const exportPDF = () => {
   if (!selectedPeriod.value) {
     notificationStore.error('กรุณาเลือกรอบการประเมินก่อน');
@@ -233,12 +261,6 @@ onMounted(fetchPeriods);
 </script>
 
 <style scoped>
-.signature-text {
-  font-family: monospace;
-  white-space: pre-wrap;
-  margin: 0;
-}
-
 @media print {
   .v-btn, .v-select {
     display: none !important;

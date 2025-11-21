@@ -49,10 +49,10 @@ exports.uploadEvidence = async (req, res, next) => {
     });
     if (!okAssign) return res.status(400).json({ success:false, message:'evaluatee not assigned in the period' });
 
-    // period ต้องเปิดอยู่
-    if (!(await isPeriodActive(Number(period_id)))) {  //คือ period_id ที่ส่งมา ต้องเป็นเลข และต้องมีในตาราง evaluation_periods และ is_active=1
-      //isPeriodActive return true/false  
-      return res.status(403).json({ success:false, message:'period closed' });
+    // ตรวจสอบว่า period มีอยู่จริง (ไม่ต้องเช็ค is_active เพราะถ้าถูก assign แล้วควรให้ upload ได้)
+    const periodExists = await db('evaluation_periods').where({ id: Number(period_id) }).first();
+    if (!periodExists) {
+      return res.status(404).json({ success:false, message:'period not found' });
     }
 
     // Note: Skipping indicator-evidence_type validation for competition (6-hour timeframe)
@@ -114,9 +114,7 @@ exports.deleteMine = async (req, res, next) => {
     if (!row || row.evaluatee_id !== evaluatee_id) {
       return res.status(404).json({ success:false, message:'not found' });
     }
-    if (!(await isPeriodActive(row.period_id))) {
-      return res.status(403).json({ success:false, message:'period closed' });
-    }
+    // ไม่ต้องเช็ค is_active เพราะถ้าถูก assign แล้วควรให้ลบได้
 
     const abs = path.join(__dirname, '..', 'uploads', row.storage_path);
     await db('attachments').where({ id }).del();
@@ -138,9 +136,7 @@ exports.updateFileMine = async (req, res, next) => {
     const row = await attRepo.findById(id);
     if (!row || row.evaluatee_id !== userId) return res.status(404).json({ success:false, message:'not found' });
 
-    if (!(await isPeriodActive(row.period_id))) {
-      return res.status(403).json({ success:false, message:'period closed' });
-    }
+    // ไม่ต้องเช็ค is_active เพราะถ้าถูก assign แล้วควรให้แก้ไขได้
 
     const oldAbs = path.join(__dirname, '..', 'uploads', row.storage_path);
     const newRel = relFromUploads(req.file.path);
@@ -170,9 +166,7 @@ exports.updateMetaMine = async (req, res, next) => {
     const row = await attRepo.findById(id);
     if (!row || row.evaluatee_id !== userId) return res.status(404).json({ success:false, message:'not found' });
 
-    if (!(await isPeriodActive(row.period_id))) {
-      return res.status(403).json({ success:false, message:'period closed' });
-    }
+    // ไม่ต้องเช็ค is_active เพราะถ้าถูก assign แล้วควรให้แก้ไขได้
 
     const newIndicator = indicator_id ? Number(indicator_id) : row.indicator_id;
     const newEvType   = evidence_type_id ? Number(evidence_type_id) : row.evidence_type_id;

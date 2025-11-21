@@ -295,7 +295,9 @@ const saveEvaluation = async () => {
       hour: '2-digit',
       minute: '2-digit'
     });
-    const signatureText = `ลงนามโดย: ${authStore.user.name_th}\nตำแหน่ง: กรรมการประเมิน\nวันที่: ${timestamp}`;
+    // ใช้ชื่อจาก authStore.user.name_th หรือ fallback
+    const evaluatorName = authStore.user?.name_th || authStore.user?.name || 'กรรมการประเมิน';
+    const signatureText = `ลงนามโดย: ${evaluatorName}\nตำแหน่ง: กรรมการประเมิน\nวันที่: ${timestamp}`;
 
     await signatureService.create({
       evaluatee_id: parseInt(evaluateeId.value),

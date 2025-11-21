@@ -1,8 +1,8 @@
-    const router = require('express').Router();
-    // routes/users.routes.js
-    const auth = require('../middlewares/auth');
-    const ctrl = require('../controllers/users.controller');
- 
+const router = require('express').Router();
+// routes/users.routes.js
+const auth = require('../middlewares/auth');
+const ctrl = require('../controllers/users.controller');
+
     
 // หมายเหตุเพื่อการสอน:
 // - list/listServer/get: ให้ทุกบทบาทที่ล็อกอินแล้วเรียกได้ (admin/evaluator/evaluatee)
@@ -23,11 +23,3 @@ router.delete('/:id', auth('admin'), ctrl.remove);
 
 module.exports = router;
 
-
-
-
-
-
-
-
-    module.exports = router;

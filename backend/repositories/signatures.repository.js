@@ -20,13 +20,31 @@ exports.findById = async (id) => {
     .first();
 };
 
-// ดึงตาม result_id
-exports.findByResult = async (resultId) => {
-  return db(TABLE)
-    .select('signatures.*', 'users.name_th as evaluator_name')
-    .leftJoin('users', 'signatures.evaluator_id', 'users.id')
-    .where('signatures.result_id', resultId)
-    .orderBy('signatures.signed_at', 'desc');
+// ดึงตาม evaluatee_id และ period_id
+exports.findByEvaluateeAndPeriod = async (evaluateeId, periodId) => {
+  try {
+    return await db(TABLE)
+      .select('signatures.*', 'users.name_th as evaluator_name')
+      .leftJoin('users', 'signatures.evaluator_id', 'users.id')
+      .where({
+        'signatures.evaluatee_id': evaluateeId,
+        'signatures.period_id': periodId
+      })
+      .orderBy('signatures.signed_at', 'desc');
+  } catch (error) {
+    // ถ้า column ไม่มี ให้ลอง query แบบไม่มี table prefix
+    if (error.message && error.message.includes('Unknown column')) {
+      return await db(TABLE)
+        .select('signatures.*', 'users.name_th as evaluator_name')
+        .leftJoin('users', 'signatures.evaluator_id', 'users.id')
+        .where({
+          evaluatee_id: evaluateeId,
+          period_id: periodId
+        })
+        .orderBy('signed_at', 'desc');
+    }
+    throw error;
+  }
 };
 
 // ดึงตาม evaluator_id
@@ -38,9 +56,13 @@ exports.findByEvaluator = async (evaluatorId) => {
 };
 
 // ตรวจสอบว่ามีลายเซ็นแล้วหรือไม่
-exports.exists = async (resultId, evaluatorId) => {
+exports.exists = async (evaluateeId, periodId, evaluatorId) => {
   const row = await db(TABLE)
-    .where({ result_id: resultId, evaluator_id: evaluatorId })
+    .where({
+      evaluatee_id: evaluateeId,
+      period_id: periodId,
+      evaluator_id: evaluatorId
+    })
     .first();
   return !!row;
 };
@@ -48,9 +70,9 @@ exports.exists = async (resultId, evaluatorId) => {
 // สร้างใหม่
 exports.create = async (payload) => {
   // ตรวจสอบว่ามีลายเซ็นแล้วหรือไม่
-  const exists = await exports.exists(payload.result_id, payload.evaluator_id);
+  const exists = await exports.exists(payload.evaluatee_id, payload.period_id, payload.evaluator_id);
   if (exists) {
-    throw new Error('Signature already exists for this result and evaluator');
+    throw new Error('Signature already exists for this evaluatee, period and evaluator');
   }
 
   const [id] = await db(TABLE).insert(payload);
@@ -60,9 +82,4 @@ exports.create = async (payload) => {
 // ลบ
 exports.remove = async (id) => {
   return db(TABLE).where({ id }).del();
-};
-
-// ลบตาม result_id (สำหรับกรณีต้องการลบทั้งหมด)
-exports.removeByResult = async (resultId) => {
-  return db(TABLE).where({ result_id: resultId }).del();
 };

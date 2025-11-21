@@ -6,9 +6,7 @@ const db = require('../db/knex');
 exports.getIndividualSummary = async (evaluateeId, periodId) => {
   // ข้อมูลพื้นฐาน
   const evaluatee = await db('users')
-    .select('id', 'name_th', 'email', 'department_id')
-    .leftJoin('departments', 'users.department_id', 'departments.id')
-    .select('departments.name_th as department_name')
+    .select('id', 'name_th', 'email')
     .where('users.id', evaluateeId)
     .first();
 
@@ -51,17 +49,33 @@ exports.getIndividualSummary = async (evaluateeId, periodId) => {
     .orderBy('evaluator_comments.created_at', 'desc');
 
   // ลายเซ็นกรรมการ
-  const signatures = await db('signatures')
-    .select(
-      'signatures.*',
-      'users.name_th as evaluator_name',
-      'er.indicator_id'
-    )
-    .leftJoin('users', 'signatures.evaluator_id', 'users.id')
-    .leftJoin('evaluation_results as er', 'signatures.result_id', 'er.id')
-    .where('er.evaluatee_id', evaluateeId)
-    .where('er.period_id', periodId)
-    .groupBy('signatures.evaluator_id');
+  let signatures = [];
+  try {
+    signatures = await db('signatures')
+      .select(
+        'signatures.*',
+        'users.name_th as evaluator_name'
+      )
+      .leftJoin('users', 'signatures.evaluator_id', 'users.id')
+      .where('signatures.evaluatee_id', evaluateeId)
+      .where('signatures.period_id', periodId)
+      .orderBy('signatures.signed_at', 'desc');
+  } catch (error) {
+    // ถ้า column ไม่มี ให้ลอง query แบบไม่มี table prefix
+    if (error.message && error.message.includes('Unknown column')) {
+      signatures = await db('signatures')
+        .select(
+          'signatures.*',
+          'users.name_th as evaluator_name'
+        )
+        .leftJoin('users', 'signatures.evaluator_id', 'users.id')
+        .where('evaluatee_id', evaluateeId)
+        .where('period_id', periodId)
+        .orderBy('signed_at', 'desc');
+    } else {
+      console.error('[Reports] Error fetching signatures:', error);
+    }
+  }
 
   // คำนวณคะแนนรวม
   const totalSelfScore = results.reduce((sum, r) => sum + (parseFloat(r.self_score) || 0), 0);
@@ -87,44 +101,30 @@ exports.getIndividualSummary = async (evaluateeId, periodId) => {
 
 // สรุปผลรวมทั้งหมด (ภาพรวม)
 exports.getOverallSummary = async (periodId) => {
-  const summary = await db('evaluation_results as er')
-    .select(
-      'u.id as evaluatee_id',
-      'u.name_th as evaluatee_name',
-      'd.name_th as department_name'
-    )
-    .count('er.id as total_indicators')
-    .avg('er.self_score as avg_self_score')
-    .avg('er.evaluator_score as avg_evaluator_score')
-    .sum('i.weight as total_weight')
+  // ใช้ calculateFinal เพื่อคำนวณคะแนนรวมที่ถูกต้อง
+  const allResults = await db('evaluation_results as er')
+    .select('er.evaluatee_id', 'u.name_th as evaluatee_name')
     .leftJoin('users as u', 'er.evaluatee_id', 'u.id')
-    .leftJoin('departments as d', 'u.department_id', 'd.id')
-    .leftJoin('indicators as i', 'er.indicator_id', 'i.id')
     .where('er.period_id', periodId)
-    .groupBy('u.id', 'u.name_th', 'd.name_th')
+    .groupBy('er.evaluatee_id', 'u.name_th')
     .orderBy('u.name_th', 'asc');
 
-  return summary;
-};
+  const resultsRepo = require('./results.repository');
+  const summaries = await Promise.all(
+    allResults.map(async (row) => {
+      const summary = await resultsRepo.calculateFinal(row.evaluatee_id, periodId);
+      return {
+        evaluatee_id: row.evaluatee_id,
+        evaluatee_name: row.evaluatee_name,
+        total_score: summary.total_score || 0,
+        evaluator_total: summary.evaluator_total || 0,
+        self_total: summary.self_total || 0,
+        status: summary.status || 'draft'
+      };
+    })
+  );
 
-// สรุปตามแผนก
-exports.getDepartmentSummary = async (departmentId, periodId) => {
-  const summary = await db('evaluation_results as er')
-    .select(
-      'u.id as evaluatee_id',
-      'u.name_th as evaluatee_name',
-      'u.email'
-    )
-    .count('er.id as total_indicators')
-    .avg('er.self_score as avg_self_score')
-    .avg('er.evaluator_score as avg_evaluator_score')
-    .leftJoin('users as u', 'er.evaluatee_id', 'u.id')
-    .where('u.department_id', departmentId)
-    .where('er.period_id', periodId)
-    .groupBy('u.id', 'u.name_th', 'u.email')
-    .orderBy('u.name_th', 'asc');
-
-  return summary;
+  return summaries;
 };
 
 // สรุปตามหัวข้อการประเมิน

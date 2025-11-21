@@ -174,8 +174,7 @@ const handleSaveBulk = async () => {
         items.push({
           evaluator_id: evaluatorId,
           evaluatee_id: evaluateeId,
-          period_id: bulkForm.value.period_id,
-          role_type: 'member'
+          period_id: bulkForm.value.period_id
         });
       }
     }

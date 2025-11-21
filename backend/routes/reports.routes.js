@@ -15,10 +15,6 @@ router.get('/individual/:evaluateeId/:periodId', ctrl.getIndividualSummary);
 // สรุปภาพรวมทั้งหมดในรอบประเมิน
 router.get('/overall/:periodId', ctrl.getOverallSummary);
 
-// GET /api/reports/department/:departmentId/:periodId
-// สรุปผลตามแผนก/หน่วยงาน
-router.get('/department/:departmentId/:periodId', ctrl.getDepartmentSummary);
-
 // GET /api/reports/topics/:periodId
 // สรุปคะแนนตามหัวข้อประเมิน
 router.get('/topics/:periodId', ctrl.getTopicSummary);

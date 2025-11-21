@@ -57,7 +57,7 @@ exports.getMine = async (req, res, next) => {
 // POST /api/assignments
 exports.create = async (req, res, next) => {
   try {
-    const { evaluator_id, evaluatee_id, period_id, role_type } = req.body;
+    const { evaluator_id, evaluatee_id, period_id } = req.body;
     
     if (!evaluator_id) return res.status(400).json({ success: false, message: 'evaluator_id required' });
     if (!evaluatee_id) return res.status(400).json({ success: false, message: 'evaluatee_id required' });
@@ -70,8 +70,7 @@ exports.create = async (req, res, next) => {
     const created = await repo.create({ 
       evaluator_id, 
       evaluatee_id, 
-      period_id,
-      role_type: role_type || 'member'
+      period_id
     });
     
     res.status(201).json({ success: true, data: created });
